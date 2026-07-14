@@ -27,6 +27,7 @@ class BeneficiarySeeder extends Seeder
                 'barangay_id' => $faker->randomElement($barangays),
                 'assistance_type_id' => $faker->randomElement($types),
                 'address' => $faker->streetAddress().', '.$faker->randomElement($barangays ? ['Tagudin'] : ['Tagudin']),
+                'amount' => $faker->randomFloat(2, 500, 10000),
                 'latitude' => $faker->latitude(16.8, 17.0),
                 'longitude' => $faker->longitude(120.2, 120.5),
                 'case_info' => $faker->sentence(),

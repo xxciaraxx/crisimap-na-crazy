@@ -1,16 +1,19 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">Beneficiary Records</h2>
+        <div class="flex justify-between items-center gap-4">
+            <div>
+                <h2 class="font-semibold text-xl text-gray-800 leading-tight">Beneficiary Records</h2>
+                <p class="text-sm text-gray-500">Search, verify, and track assistance history.</p>
+            </div>
             <a href="{{ route('beneficiaries.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Add Beneficiary</a>
         </div>
     </x-slot>
 
     <div class="py-6">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white shadow overflow-hidden sm:rounded-lg p-4 mb-4">
-                <form method="GET" class="grid grid-cols-1 md:grid-cols-6 gap-3">
-                    <input name="search" value="{{ request('search') }}" placeholder="Search name" class="border rounded px-3 py-2" />
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-4">
+            <div class="bg-white shadow overflow-hidden sm:rounded-lg p-4">
+                <form method="GET" class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                    <input name="search" value="{{ request('search') }}" placeholder="Search name or code" class="border rounded px-3 py-2" />
                     <select name="barangay_id" class="border rounded px-3 py-2">
                         <option value="">All Barangays</option>
                         @foreach($barangays as $barangay)
@@ -37,35 +40,46 @@
             </div>
 
             <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Barangay</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assistance</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        @forelse($beneficiaries as $beneficiary)
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
                             <tr>
-                                <td class="px-4 py-3">{{ $beneficiary->name }}</td>
-                                <td class="px-4 py-3">{{ $beneficiary->barangay->name ?? '—' }}</td>
-                                <td class="px-4 py-3">{{ $beneficiary->assistanceType->name ?? '—' }}</td>
-                                <td class="px-4 py-3">{{ $beneficiary->date_of_assistance?->format('M d, Y') }}</td>
-                                <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs {{ $beneficiary->status === 'Completed' ? 'bg-green-100 text-green-700' : ($beneficiary->status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700') }}">{{ $beneficiary->status }}</span></td>
-                                <td class="px-4 py-3 space-x-2">
-                                    <a href="{{ route('beneficiaries.show', $beneficiary) }}" class="text-blue-600">View</a>
-                                    <a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="text-green-600">Edit</a>
-                                </td>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Birth Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Barangay</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assistance</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                             </tr>
-                        @empty
-                            <tr><td colspan="6" class="px-4 py-6 text-center text-gray-500">No beneficiaries found.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            @forelse($beneficiaries as $beneficiary)
+                                <tr>
+                                    <td class="px-4 py-3 text-sm">{{ $beneficiary->reference_code ?? 'N/A' }}</td>
+                                    <td class="px-4 py-3">{{ $beneficiary->name }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ $beneficiary->birth_date?->format('M d, Y') ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ $beneficiary->barangay->name ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ $beneficiary->assistanceType->name ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-sm">PHP {{ number_format((float) ($beneficiary->amount ?? 0), 2) }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ $beneficiary->date_of_assistance?->format('M d, Y') }}</td>
+                                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs {{ $beneficiary->status === 'Completed' ? 'bg-green-100 text-green-700' : ($beneficiary->status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700') }}">{{ $beneficiary->status }}</span></td>
+                                    <td class="px-4 py-3 space-x-2 text-sm">
+                                        <a href="{{ route('beneficiaries.show', $beneficiary) }}" class="text-blue-600">View</a>
+                                        <a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="text-green-600">Edit</a>
+                                        @if($beneficiary->reference_code)
+                                            <a href="{{ route('beneficiaries.verify', $beneficiary->reference_code) }}" class="text-gray-600">Verify</a>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="9" class="px-4 py-6 text-center text-gray-500">No beneficiaries found.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
                 <div class="p-4">{{ $beneficiaries->links() }}</div>
             </div>
         </div>

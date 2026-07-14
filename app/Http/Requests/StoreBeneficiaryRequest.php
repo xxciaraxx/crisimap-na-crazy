@@ -16,7 +16,9 @@ class StoreBeneficiaryRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'age' => ['required', 'integer', 'min:1', 'max:120'],
+            'birth_date' => ['nullable', 'date', 'before_or_equal:today'],
             'sex' => ['required', 'in:Male,Female,Other'],
+            'amount' => ['nullable', 'numeric', 'min:0'],
             'contact' => ['nullable', 'string', 'max:50'],
             'barangay_id' => ['nullable', 'exists:barangays,id'],
             'assistance_type_id' => ['nullable', 'exists:assistance_types,id'],
@@ -26,7 +28,11 @@ class StoreBeneficiaryRequest extends FormRequest
             'case_info' => ['nullable', 'string'],
             'date_of_assistance' => ['nullable', 'date'],
             'status' => ['required', 'in:Pending,Approved,Released,Completed'],
+            'override_eligibility' => ['nullable', 'boolean'],
+            'override_justification' => ['nullable', 'required_if:override_eligibility,1', 'string', 'max:1000'],
             'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
         ];
     }
 }

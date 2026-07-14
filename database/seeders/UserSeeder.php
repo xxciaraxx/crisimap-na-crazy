@@ -17,6 +17,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password123'),
                 'role' => 'mswdo_head',
                 'status' => 'active',
+                'email_verified_at' => now(),
             ]
         );
 
@@ -27,6 +28,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password123'),
                 'role' => 'aics_focal_person',
                 'status' => 'active',
+                'email_verified_at' => now(),
             ]
         );
 
@@ -37,6 +39,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password123'),
                 'role' => 'social_welfare_officer',
                 'status' => 'active',
+                'email_verified_at' => now(),
             ]
         );
     }

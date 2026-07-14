@@ -16,6 +16,7 @@ class AuthTest extends TestCase
             'email' => 'test@example.com',
             'password' => bcrypt('password123'),
             'role' => 'social_welfare_officer',
+            'email_verified_at' => null,
         ]);
 
         $response = $this->post('/login', [
