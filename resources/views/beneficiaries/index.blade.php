@@ -45,6 +45,7 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Case No.</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Birth Date</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Barangay</th>
@@ -59,6 +60,7 @@
                             @forelse($beneficiaries as $beneficiary)
                                 <tr>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->reference_code ?? 'N/A' }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ $beneficiary->caseRecord?->case_number ?? '—' }}</td>
                                     <td class="px-4 py-3">{{ $beneficiary->name }}</td>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->birth_date?->format('M d, Y') ?? '—' }}</td>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->barangay->name ?? '—' }}</td>
@@ -75,7 +77,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="9" class="px-4 py-6 text-center text-gray-500">No beneficiaries found.</td></tr>
+                                <tr><td colspan="10" class="px-4 py-6 text-center text-gray-500">No beneficiaries found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

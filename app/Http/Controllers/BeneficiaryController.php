@@ -9,6 +9,7 @@ use App\Models\AssistanceType;
 use App\Models\Attachment;
 use App\Models\Barangay;
 use App\Models\Beneficiary;
+use App\Models\CaseRecord;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class BeneficiaryController extends Controller
     public function index(Request $request)
     {
         $query = $this->filteredQuery($request)
-            ->with(['barangay', 'assistanceType', 'encoder', 'overrideUser'])
+            ->with(['barangay', 'assistanceType', 'caseRecord', 'encoder', 'overrideUser'])
             ->orderByDesc('date_of_assistance')
             ->orderByDesc('created_at');
 
@@ -41,6 +42,7 @@ class BeneficiaryController extends Controller
             'barangays' => Barangay::orderBy('name')->get(),
             'assistanceTypes' => AssistanceType::orderBy('name')->get(),
             'canOverrideEligibility' => $this->canOverrideEligibility(),
+            'caseRecords' => CaseRecord::orderByDesc('date_of_entry')->limit(200)->get(['id', 'case_number', 'client_name']),
         ]);
     }
 
@@ -66,6 +68,7 @@ class BeneficiaryController extends Controller
             'barangays' => Barangay::orderBy('name')->get(),
             'assistanceTypes' => AssistanceType::orderBy('name')->get(),
             'canOverrideEligibility' => $this->canOverrideEligibility(),
+            'caseRecords' => CaseRecord::orderByDesc('date_of_entry')->limit(200)->get(['id', 'case_number', 'client_name']),
         ]);
     }
 

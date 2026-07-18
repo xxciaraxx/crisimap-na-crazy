@@ -13,6 +13,7 @@ class Beneficiary extends Model
 
     protected $fillable = [
         'name',
+        'case_record_id',
         'age',
         'sex',
         'birth_date',
@@ -64,6 +65,11 @@ class Beneficiary extends Model
     public function barangay()
     {
         return $this->belongsTo(Barangay::class);
+    }
+
+    public function caseRecord()
+    {
+        return $this->belongsTo(CaseRecord::class);
     }
 
     public function assistanceType()

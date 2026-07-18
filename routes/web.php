@@ -1,21 +1,17 @@
 <?php
 
 use App\Http\Controllers\BeneficiaryController;
+use App\Http\Controllers\CaseRecordController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    if (Auth::check()) {
-        return redirect()->route('dashboard');
-    }
-
-    return redirect()->route('login');
+    return view('welcome');
 });
 
 Route::middleware(['auth'])->group(function () {
@@ -23,6 +19,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/beneficiaries/duplicate-check', [BeneficiaryController::class, 'duplicateCheck'])->name('beneficiaries.duplicate-check');
     Route::get('/verification/{referenceCode}', [BeneficiaryController::class, 'verify'])->name('beneficiaries.verify');
+    Route::resource('case-records', CaseRecordController::class);
     Route::resource('beneficiaries', BeneficiaryController::class);
     Route::get('/map', [MapController::class, 'index'])->name('map');
     Route::get('/map/data', [MapController::class, 'data'])->name('map.data');

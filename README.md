@@ -9,6 +9,7 @@ CRISIMAP is a GIS-based monitoring and mapping system for AICS beneficiary distr
 - Dashboard analytics and recent activity
 - PDF and Excel report exports
 - Settings for barangays and assistance types
+- Digital case-record logbook with household members, housing details, signed-record uploads, and linked assistance beneficiaries
 
 ## Setup
 1. Install PHP dependencies:

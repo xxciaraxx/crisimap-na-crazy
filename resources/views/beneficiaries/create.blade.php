@@ -13,6 +13,7 @@
                     @csrf
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label class="block text-sm">Full Name</label><input name="name" value="{{ old('name') }}" class="w-full border rounded px-3 py-2" required></div>
+                        <div><label class="block text-sm">Originating Case Record</label><select name="case_record_id" class="w-full border rounded px-3 py-2"><option value="">No linked case record</option>@foreach($caseRecords as $caseRecord)<option value="{{ $caseRecord->id }}" @selected(old('case_record_id', request('case_record_id')) == $caseRecord->id)>{{ $caseRecord->case_number }} — {{ $caseRecord->client_name }}</option>@endforeach</select></div>
                         <div><label class="block text-sm">Age</label><input type="number" name="age" value="{{ old('age') }}" class="w-full border rounded px-3 py-2" required></div>
                         <div><label class="block text-sm">Birth Date</label><input type="date" name="birth_date" value="{{ old('birth_date') }}" class="w-full border rounded px-3 py-2"></div>
                         <div><label class="block text-sm">Sex</label><select name="sex" class="w-full border rounded px-3 py-2"><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></div>

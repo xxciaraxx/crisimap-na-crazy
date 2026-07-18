@@ -15,6 +15,7 @@ class StoreBeneficiaryRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'case_record_id' => ['nullable', 'exists:case_records,id'],
             'age' => ['required', 'integer', 'min:1', 'max:120'],
             'birth_date' => ['nullable', 'date', 'before_or_equal:today'],
             'sex' => ['required', 'in:Male,Female,Other'],

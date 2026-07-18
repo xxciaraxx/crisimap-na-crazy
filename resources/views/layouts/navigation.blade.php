@@ -18,6 +18,9 @@
                     <x-nav-link :href="route('beneficiaries.index')" :active="request()->routeIs('beneficiaries.*')">
                         {{ __('Beneficiaries') }}
                     </x-nav-link>
+                    <x-nav-link :href="route('case-records.index')" :active="request()->routeIs('case-records.*')">
+                        {{ __('Case Records') }}
+                    </x-nav-link>
                     <x-nav-link :href="route('map')" :active="request()->routeIs('map')">
                         {{ __('Map') }}
                     </x-nav-link>
@@ -89,6 +92,9 @@
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('beneficiaries.index')" :active="request()->routeIs('beneficiaries.*')">
                 {{ __('Beneficiaries') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('case-records.index')" :active="request()->routeIs('case-records.*')">
+                {{ __('Case Records') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('map')" :active="request()->routeIs('map')">
                 {{ __('Map') }}
