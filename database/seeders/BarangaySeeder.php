@@ -3,18 +3,23 @@
 namespace Database\Seeders;
 
 use App\Models\Barangay;
+use App\Support\TagudinBarangays;
 use Illuminate\Database\Seeder;
 
 class BarangaySeeder extends Seeder
 {
     public function run(): void
     {
-        $barangays = [
-            'Aglipay', 'Ambalayat', 'Bacud', 'Bario-Patac', 'Bimmotobot', 'Bitalag', 'Cabisilan', 'Cayus', 'Darnay', 'Dinitian', 'Libtong', 'Magsingal', 'Mambug', 'Marnay', 'Nangobongan', 'Padang', 'Pangpang', 'Poblacion', 'Sangbay', 'Tampugo', 'Taro', 'Tay-ac', 'Tinaan', 'Ubbog',
-        ];
+        foreach (TagudinBarangays::all() as $barangay) {
+            $record = Barangay::query()->where('code', $barangay['code'])->first()
+                ?? Barangay::query()->where('name', $barangay['name'])->first()
+                ?? new Barangay();
 
-        foreach ($barangays as $barangay) {
-            Barangay::firstOrCreate(['name' => $barangay]);
+            $record->fill([
+                'name' => $barangay['name'],
+                'code' => $barangay['code'],
+                'notes' => 'Tagudin, Ilocos Sur barangay boundary (PSGC)',
+            ])->save();
         }
     }
 }

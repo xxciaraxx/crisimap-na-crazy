@@ -15,8 +15,8 @@ class UserSeeder extends Seeder
             [
                 'name' => 'MSWDO Administrator',
                 'password' => Hash::make('password123'),
-                'role' => 'mswdo_head',
-                'status' => 'active',
+                'role' => 'admin',
+                'status' => 'approved',
                 'email_verified_at' => now(),
             ]
         );
@@ -26,8 +26,8 @@ class UserSeeder extends Seeder
             [
                 'name' => 'AICS Focal Person',
                 'password' => Hash::make('password123'),
-                'role' => 'aics_focal_person',
-                'status' => 'active',
+                'role' => 'focal_person',
+                'status' => 'approved',
                 'email_verified_at' => now(),
             ]
         );
@@ -37,10 +37,12 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Social Welfare Officer',
                 'password' => Hash::make('password123'),
-                'role' => 'social_welfare_officer',
-                'status' => 'active',
+                'role' => 'social_officer',
+                'status' => 'approved',
                 'email_verified_at' => now(),
             ]
         );
+
+        User::firstOrCreate(['email' => 'it@crisimap.test'], ['name' => 'System Administrator', 'password' => Hash::make('password123'), 'role' => 'super_admin', 'status' => 'approved', 'email_verified_at' => now()]);
     }
 }

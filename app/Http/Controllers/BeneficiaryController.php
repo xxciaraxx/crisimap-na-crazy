@@ -22,6 +22,7 @@ class BeneficiaryController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Beneficiary::class);
         $query = $this->filteredQuery($request)
             ->with(['barangay', 'assistanceType', 'caseRecord', 'encoder', 'overrideUser'])
             ->orderByDesc('date_of_assistance')
@@ -38,6 +39,7 @@ class BeneficiaryController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Beneficiary::class);
         return view('beneficiaries.create', [
             'barangays' => Barangay::orderBy('name')->get(),
             'assistanceTypes' => AssistanceType::orderBy('name')->get(),
@@ -48,11 +50,13 @@ class BeneficiaryController extends Controller
 
     public function store(StoreBeneficiaryRequest $request)
     {
+        $this->authorize('create', Beneficiary::class);
         return $this->persist($request->validated(), $request);
     }
 
     public function show(Beneficiary $beneficiary)
     {
+        $this->authorize('view', $beneficiary);
         $beneficiary->load(['barangay', 'assistanceType', 'attachments.uploader', 'encoder', 'overrideUser']);
 
         return view('beneficiaries.show', array_merge(
@@ -63,6 +67,7 @@ class BeneficiaryController extends Controller
 
     public function edit(Beneficiary $beneficiary)
     {
+        $this->authorize('update', $beneficiary);
         return view('beneficiaries.edit', [
             'beneficiary' => $beneficiary,
             'barangays' => Barangay::orderBy('name')->get(),
@@ -74,11 +79,13 @@ class BeneficiaryController extends Controller
 
     public function update(UpdateBeneficiaryRequest $request, Beneficiary $beneficiary)
     {
+        $this->authorize('update', $beneficiary);
         return $this->persist($request->validated(), $request, $beneficiary);
     }
 
     public function destroy(Beneficiary $beneficiary)
     {
+        $this->authorize('delete', $beneficiary);
         $beneficiary->delete();
         $this->logActivity('deleted', 'Deleted beneficiary record for '.$beneficiary->name, $beneficiary);
 
@@ -437,6 +444,6 @@ class BeneficiaryController extends Controller
     {
         $user = auth()->user();
 
-        return $user && in_array($user->role, ['mswdo_head', 'technical_expert'], true);
+        return $user && $user->hasRole('super_admin');
     }
 }

@@ -11,7 +11,7 @@ class CaseRecord extends Model
 
     protected $fillable = [
         'case_number', 'date_of_entry', 'client_name', 'barangay_id', 'problem_presented',
-        'house_structure', 'water_source', 'electricity', 'client_signature_path', 'encoded_by',
+        'house_structure', 'water_source', 'electricity', 'client_signature_path', 'encoded_by', 'status', 'rejection_reason',
     ];
 
     protected $casts = ['date_of_entry' => 'date'];

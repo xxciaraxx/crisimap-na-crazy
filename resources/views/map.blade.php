@@ -1,139 +1,121 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">GIS Map</h2>
-    </x-slot>
+    <x-slot name="header"><h2 class="font-semibold text-xl text-gray-800 leading-tight">Beneficiary GIS Map</h2></x-slot>
 
-    <div class="py-6">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-4">
-            <div class="bg-white shadow rounded-lg p-4">
-                <form id="filter-form" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
-                    <input name="search" placeholder="Search name or code" class="border rounded px-3 py-2">
-                    <select name="barangay_id" class="border rounded px-3 py-2">
-                        <option value="">All Barangays</option>
-                        @foreach($barangays as $barangay)
-                            <option value="{{ $barangay->id }}">{{ $barangay->name }}</option>
-                        @endforeach
-                    </select>
-                    <select name="assistance_type_id" class="border rounded px-3 py-2">
-                        <option value="">All Assistance Types</option>
-                        @foreach($assistanceTypes as $type)
-                            <option value="{{ $type->id }}">{{ $type->name }}</option>
-                        @endforeach
-                    </select>
-                    <select name="status" class="border rounded px-3 py-2">
-                        <option value="">All Status</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Released">Released</option>
-                        <option value="Completed">Completed</option>
-                    </select>
-                    <input type="date" name="from" class="border rounded px-3 py-2">
-                    <input type="date" name="to" class="border rounded px-3 py-2">
-                    <button class="bg-blue-600 text-white px-4 py-2 rounded xl:col-span-6">Apply Filters</button>
-                </form>
-                <p id="map-status" class="mt-3 text-sm text-gray-500">Loading GIS layers...</p>
+    <div class="py-6"><div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <section class="map-shell">
+            <div class="map-toolbar">
+                <div class="map-title-block"><span class="map-title-icon" aria-hidden="true">&#9678;</span><div><p class="map-eyebrow">AICS geographic distribution</p><h3>Tagudin beneficiary map</h3><p id="map-status">Loading GIS layers&hellip;</p></div></div>
+                <div class="map-toolbar-actions"><span class="map-live-indicator"><i></i> Live view</span><button id="reset-map-view" class="map-control-button" type="button">Full map</button><button id="filter-toggle" class="map-control-button" type="button">Filters <span>&darr;</span></button></div>
             </div>
-            <div class="bg-white shadow rounded-lg p-4">
-                <div id="map" style="height: 650px;"></div>
+            <form id="filter-form" class="map-filters" hidden>
+                <label>Search<input name="search" placeholder="Name or case ID"></label>
+                <label>Barangay<select name="barangay_id"><option value="">All barangays</option>@foreach($barangays as $barangay)<option value="{{ $barangay->id }}">{{ $barangay->name }}</option>@endforeach</select></label>
+                <label>Status<select name="status"><option value="">All statuses</option><option>Pending</option><option>Approved</option><option>Released</option><option>Completed</option></select></label>
+                <label>From<input type="date" name="from"></label><label>To<input type="date" name="to"></label>
+                <button class="map-apply" type="submit">Apply filters</button>
+            </form>
+            <div class="map-stage"><div class="map-corner-label"><span>TAGUDIN, ILOCOS SUR</span><b>Beneficiary distribution</b></div><div id="map" aria-label="Interactive map of Tagudin beneficiaries"></div>
+                <aside class="map-legend" id="map-legend"><div class="legend-heading"><div><strong>Assistance type</strong><p class="legend-subtitle">Tap a color to filter map markers</p></div><button id="legend-toggle" type="button" aria-expanded="true">−</button></div><div id="legend-items"></div><button id="boundary-toggle" class="boundary-toggle" type="button">Hide barangay borders</button></aside>
             </div>
-        </div>
-    </div>
+        </section>
+    </div></div>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
-    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <livewire:map-auto-loader />
     <script>
-        const map = L.map('map').setView([16.9301, 120.3604], 12);
-        const dataEndpoint = @json(route('map.data'));
+    (() => {
+        const map = L.map('map', { zoomControl: false }).setView([16.9301, 120.3604], 12);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
         const boundaryEndpoint = @json(route('map.boundaries'));
-        const form = document.getElementById('filter-form');
-        const statusLine = document.getElementById('map-status');
-        const clusters = L.markerClusterGroup({ chunkedLoading: true, showCoverageOnHover: false });
-        const heatPoints = [];
-        let heatLayer = null;
-        let boundaryLayer = null;
+        const defaultCenter = [16.9301, 120.3604];
+        const defaultZoom = 12;
+        const form = document.getElementById('filter-form'), statusLine = document.getElementById('map-status');
+        const categoryTypes = @json($assistanceTypes); let activeCategories = new Set(categoryTypes.map(type => String(type.id)));
+        let allRecords = [], boundaryLayer, boundariesShown = true, tagudinBounds;
+        const clusters = L.markerClusterGroup({ chunkedLoading: true, showCoverageOnHover: false, maxClusterRadius: 48, disableClusteringAtZoom: 15, spiderfyOnMaxZoom: true, iconCreateFunction: clusterIcon });
+        map.addLayer(clusters);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
+        function escapeHtml(value) { const div = document.createElement('div'); div.textContent = value ?? ''; return div.innerHTML; }
+        function isPending(status) { return String(status).toLowerCase() === 'pending'; }
+        function markerSize() { return map.getZoom() >= 16 ? 17 : map.getZoom() >= 14 ? 14 : 11; }
+        function markerIcon(record) { const size = markerSize(), pending = isPending(record.status); return L.divIcon({ className: 'beneficiary-marker-wrap', iconSize: [size + 8, size + 8], iconAnchor: [(size + 8) / 2, (size + 8) / 2], html: `<span class="beneficiary-marker ${pending ? 'is-pending' : ''}" style="--marker-color:${record.category.color};--marker-size:${size}px" aria-label="${escapeHtml(record.category.name)}"><b>${escapeHtml(record.category.icon)}</b></span>` }); }
+        function statusClass(status) { return String(status).toLowerCase().replace(/\s+/g, '-'); }
+        function popup(record) { const d = record.details, canViewCase = d.case_record_id && d.case_number; const amount = d.amount ? `₱${Number(d.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : 'Not recorded'; return `<article class="beneficiary-popup" style="--category-color:${record.category.color}"><header><span class="category-icon">${escapeHtml(record.category.icon)}</span><div><b>${escapeHtml(record.category.name)}</b><small>Assistance category</small></div></header><dl><div><dt>Barangay</dt><dd>${escapeHtml(record.barangay || 'Unassigned')}</dd></div><div><dt>Date availed</dt><dd>${record.date_availed ? new Date(record.date_availed + 'T00:00:00').toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric' }) : 'Not recorded'}</dd></div><div><dt>Status</dt><dd><span class="status-badge ${statusClass(record.status)}">${escapeHtml(record.status)}</span></dd></div><div><dt>Beneficiary</dt><dd>${escapeHtml(d.name)}</dd></div><div><dt>Case reference</dt><dd>${escapeHtml(d.case_number || d.reference_code || 'Not assigned')}</dd></div><div><dt>Amount granted</dt><dd>${amount}</dd></div><div><dt>Social Officer</dt><dd>${escapeHtml(d.social_officer || 'Not assigned')}</dd></div></dl>${canViewCase ? `<a class="case-link" href="/case-records/${d.case_record_id}">View full case record <span>→</span></a>` : ''}</article>`; }
+        function clusterIcon(cluster) { const markers = cluster.getAllChildMarkers(), counts = {}; markers.forEach(marker => { const r = marker.options.record; counts[r.category.color] = (counts[r.category.color] || 0) + 1; }); const total = markers.length; let position = 0; const slices = Object.entries(counts).map(([color,count]) => { const end = position + count / total * 360; const slice = `${color} ${position}deg ${end}deg`; position = end; return slice; }).join(', '); return L.divIcon({ className:'category-cluster-wrap', iconSize:[44,44], iconAnchor:[22,22], html:`<span class="category-cluster" style="background:conic-gradient(${slices})"><b>${total}</b></span>` }); }
+        function drawRecords() { clusters.clearLayers(); allRecords.filter(r => activeCategories.has(String(r.category.id))).forEach((record, index) => { const marker = L.marker([record.latitude, record.longitude], { icon: markerIcon(record), record, riseOnHover:true, keyboard:true }); marker.bindPopup(popup(record), { maxWidth: 280, className:'beneficiary-popup-wrap', closeButton:true, autoPanPadding:[24,24] }); marker.on('click', () => marker.getElement()?.classList.add('marker-pulse')); marker.on('popupclose', () => marker.getElement()?.classList.remove('marker-pulse')); marker.on('add', () => { const e = marker.getElement(); if (e && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) e.style.animationDelay = `${Math.random() * 300}ms`; }); clusters.addLayer(marker); }); statusLine.textContent = `${allRecords.filter(r => activeCategories.has(String(r.category.id))).length} geotagged record(s) shown.`; }
+        function renderLegend() {
+            document.getElementById('legend-items').innerHTML = categoryTypes.map(type => `<button class="legend-item ${activeCategories.has(String(type.id)) ? 'is-active' : 'is-hidden'}" data-category="${type.id}" type="button" aria-pressed="${activeCategories.has(String(type.id)) ? 'true' : 'false'}"><span class="legend-symbol" style="--marker-color:${type.color}">${escapeHtml(type.icon)}</span><span>${escapeHtml(type.name)}</span><i>✓</i></button>`).join('');
+            document.querySelectorAll('.legend-item').forEach(button => button.addEventListener('click', () => {
+                const id = button.dataset.category;
+                activeCategories.has(id) ? activeCategories.delete(id) : activeCategories.add(id);
+                renderLegend();
+                drawRecords();
+            }));
+        }
 
-        const loadBoundaries = async () => {
+        function resetMapView() {
+            if (tagudinBounds) {
+                map.fitBounds(tagudinBounds.pad(.08));
+                map.invalidateSize(true);
+            } else {
+                map.setView(defaultCenter, defaultZoom);
+            }
+        }
+        async function loadBoundaries() {
             const response = await fetch(boundaryEndpoint);
             const geojson = await response.json();
-
-            if (boundaryLayer) {
-                boundaryLayer.remove();
-            }
-
-            if (geojson && geojson.features && geojson.features.length > 0) {
-                boundaryLayer = L.geoJSON(geojson, {
-                    style: {
-                        color: '#2563eb',
-                        weight: 2,
-                        fillOpacity: 0.08,
-                    },
-                }).addTo(map);
+            if (!geojson.features?.length) return;
+            boundaryLayer = L.geoJSON(geojson, {
+                style: { color: '#1565c0', weight: 1.25, fillColor: '#e8f1fb', fillOpacity: .16 },
+                onEachFeature: (feature, layer) => {
+                    const name = feature.properties?.adm4_en || feature.properties?.name || 'Barangay';
+                    layer.bindTooltip(name, { className: 'barangay-label', permanent: true, direction: 'center', opacity: 0.85 });
+                    layer.on('click', () => {
+                        const normalized = name.trim().toLowerCase();
+                        const option = [...form.elements.barangay_id.options].find(item => item.text.trim().toLowerCase() === normalized);
+                        if (option) {
+                            form.elements.barangay_id.value = option.value;
+                            form.dispatchEvent(new Event('submit', { bubbles: true }));
+                        }
+                    });
+                },
+            }).addTo(map);
+            tagudinBounds = boundaryLayer.getBounds();
+            resetMapView();
+        }
+        function loadData() { statusLine.textContent = 'Updating map records…'; if (window.Livewire) { Livewire.dispatch('map-filters-changed', { filters: Object.fromEntries(new FormData(form)) }); } }
+        document.getElementById('filter-toggle').onclick = () => { form.hidden = !form.hidden; };
+        document.getElementById('reset-map-view').onclick = () => {
+            resetMapView();
+            if (boundaryLayer && !boundariesShown) {
+                boundariesShown = true;
+                boundaryLayer.addTo(map);
+                document.getElementById('boundary-toggle').textContent = 'Hide barangay borders';
             }
         };
-
-        const loadData = async () => {
-            statusLine.textContent = 'Loading GIS records...';
-            clusters.clearLayers();
-            heatPoints.length = 0;
-
-            const params = new URLSearchParams(new FormData(form));
-            const response = await fetch(`${dataEndpoint}?${params.toString()}`);
-            const payload = await response.json();
-
-            payload.beneficiaries.forEach((item) => {
-                const marker = L.marker([item.latitude, item.longitude]);
-                const amount = item.amount ? `PHP ${Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'PHP 0.00';
-                const assistance = item.assistance_type?.name ?? 'N/A';
-                const barangay = item.barangay?.name ?? 'Unassigned';
-                marker.bindPopup(`
-                    <div class="space-y-1">
-                        <strong>${item.name}</strong><br>
-                        <span>${assistance}</span><br>
-                        <span>${barangay}</span><br>
-                        <span>${item.status}</span><br>
-                        <span>${amount}</span><br>
-                        <a href="/beneficiaries/${item.id}" class="text-blue-600">View full record</a>
-                    </div>
-                `);
-                clusters.addLayer(marker);
-                heatPoints.push([Number(item.latitude), Number(item.longitude), item.amount ? Math.max(1, Math.min(5, Math.ceil(Number(item.amount) / 2000))) : 1]);
-            });
-
-            if (heatLayer) {
-                heatLayer.remove();
-            }
-            if (window.L && L.heatLayer && heatPoints.length > 0) {
-                heatLayer = L.heatLayer(heatPoints, {
-                    radius: 28,
-                    blur: 22,
-                    maxZoom: 17,
-                    minOpacity: 0.2,
-                }).addTo(map);
-            }
-
-            map.addLayer(clusters);
-
-            if (payload.beneficiaries.length > 0) {
-                const bounds = clusters.getBounds();
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds.pad(0.1));
-                }
-            }
-
-            statusLine.textContent = `${payload.summary.count} geotagged record(s) loaded.`;
-        };
-
-        form.addEventListener('submit', (event) => {
-            event.preventDefault();
-            loadData();
-        });
-
-        loadBoundaries().then(loadData);
+        document.getElementById('legend-toggle').onclick = event => { const legend = document.getElementById('map-legend'); legend.classList.toggle('is-collapsed'); event.currentTarget.textContent = legend.classList.contains('is-collapsed') ? '+' : '−'; event.currentTarget.setAttribute('aria-expanded', String(!legend.classList.contains('is-collapsed'))); };
+        document.getElementById('boundary-toggle').onclick = event => { boundariesShown = !boundariesShown; if (boundaryLayer) boundariesShown ? boundaryLayer.addTo(map) : boundaryLayer.remove(); event.currentTarget.textContent = boundariesShown ? 'Hide barangay borders' : 'Show barangay borders'; };
+        let filterTimer; form.addEventListener('input', () => { clearTimeout(filterTimer); filterTimer = setTimeout(loadData, 350); }); form.addEventListener('change', loadData); form.addEventListener('submit', event => { event.preventDefault(); loadData(); }); map.on('zoomend', drawRecords);
+        document.addEventListener('livewire:init', () => { Livewire.on('map-records-updated', payload => { allRecords = payload.beneficiaries ?? []; drawRecords(); }); renderLegend(); loadBoundaries().then(loadData).catch(() => statusLine.textContent = 'Unable to load map records. Please try again.'); });
+    })();
     </script>
+    <style>
+    .map-shell{overflow:hidden;border:1px solid #dce8f7;border-radius:16px;background:#fff;box-shadow:0 12px 30px #073d8214}.map-toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.3rem 1.4rem;border-bottom:1px solid #e7eff8}.map-toolbar h3{margin:.12rem 0;color:#073d82;font-size:1.22rem}.map-eyebrow{margin:0;color:#1565c0;font-size:.67rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.map-toolbar p:last-child{margin:.25rem 0 0;color:#718198;font-size:.78rem}.map-control-button,.map-apply{border:0;border-radius:8px;padding:.65rem .9rem;color:#fff;background:#1565c0;font-size:.8rem;font-weight:800;cursor:pointer;box-shadow:0 4px 10px #1565c025}.map-filters{display:grid;grid-template-columns:1.5fr repeat(4,1fr) auto;gap:.75rem;align-items:end;padding:1rem 1.4rem;border-bottom:1px solid #e7eff8;background:#f7faff}.map-filters label{display:grid;gap:.3rem;color:#52627a;font-size:.72rem;font-weight:700}.map-filters input,.map-filters select{min-width:0;border:1px solid #cddcec;border-radius:7px;padding:.56rem .62rem;color:#274667;background:#fff;font-size:.8rem}.map-stage{position:relative}.map-stage #map{height:650px}.map-legend{position:absolute;z-index:500;bottom:18px;left:18px;width:240px;border:1px solid #d8e5f2;border-radius:11px;padding:.75rem;background:#fffffff2;box-shadow:0 10px 25px #073d8226;backdrop-filter:blur(7px)}.legend-heading{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.48rem;color:#073d82}.legend-heading>div{max-width:75%}.legend-heading strong{display:block;font-size:.88rem;margin-bottom:.18rem}.legend-subtitle{margin:0;color:#5b738c;font-size:.72rem;line-height:1.2}.legend-heading button{border:0;color:#1565c0;background:transparent;font-size:1.25rem;cursor:pointer}.legend-item{display:flex;align-items:center;gap:.55rem;width:100%;border:0;border-radius:8px;padding:.55rem .5rem;background:#fff;color:#38536f;font-size:.82rem;text-align:left;cursor:pointer;transition:background .18s ease,color .18s ease}.legend-item:hover{background:#eef4ff}.legend-item.is-active{background:#eaf3ff}.legend-item.is-hidden{opacity:.55}.legend-item i{margin-left:auto;color:#2e7d32;font-style:normal}.legend-symbol{display:inline-grid;place-items:center;width:1.25rem;height:1.25rem;border-radius:50%;background:var(--marker-color,#1565c0);color:#fff;font-size:.72rem;font-weight:800;box-shadow:0 1px 3px rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.65)}.legend-symbol::after{content:'';display:block;width:0.5rem;height:0.5rem;border-radius:50%;background:rgba(255,255,255,.45);opacity:.4}.legend-item i{margin-left:auto;color:#2e7d32;font-style:normal}.legend-item.is-hidden i{visibility:hidden}hidden}.legend-symbol{display:grid;place-items:center;width:17px;height:17px;border:1.5px solid #fff;border-radius:50%;color:#fff;background:var(--marker-color);font-size:10px;line-height:1;box-shadow:0 1px 3px #073d8250}.boundary-toggle{width:100%;margin-top:.55rem;border:1px solid #bdd2e8;border-radius:6px;padding:.4rem;color:#1565c0;background:#fff;font-size:.7rem;font-weight:700;cursor:pointer}.map-legend.is-collapsed #legend-items,.map-legend.is-collapsed .boundary-toggle{display:none}.beneficiary-marker-wrap{background:transparent!important;border:0!important}.beneficiary-marker{display:grid;place-items:center;width:var(--marker-size);height:var(--marker-size);border:2px solid #fff;border-radius:50%;color:#fff;background:var(--marker-color);box-shadow:0 2px 6px #052b5b75;transition:transform .18s ease-out,box-shadow .18s ease-out;animation:marker-in .28s ease-out both}.beneficiary-marker b{font-size:calc(var(--marker-size) * .58);line-height:1}.beneficiary-marker.is-pending{opacity:.54;background:#fff;color:var(--marker-color);border-color:var(--marker-color);box-shadow:0 0 0 2px #fff,0 2px 6px #052b5b50}.leaflet-marker-icon:hover .beneficiary-marker{transform:scale(1.2);box-shadow:0 4px 10px #052b5b8c}.marker-pulse .beneficiary-marker:after{position:absolute;inset:-6px;border:2px solid var(--marker-color);border-radius:50%;content:"";animation:marker-ring .45s ease-out}.category-cluster-wrap{background:transparent!important;border:0!important}.category-cluster{display:grid;place-items:center;width:40px;height:40px;border:2px solid #fff;border-radius:50%;box-shadow:0 3px 8px #052b5b70}.category-cluster b{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;color:#073d82;background:#fff;font-size:.72rem}.beneficiary-popup-wrap .leaflet-popup-content-wrapper{border-radius:10px;padding:0;box-shadow:0 12px 30px #052b5b38}.beneficiary-popup-wrap .leaflet-popup-content{width:260px!important;margin:0}.beneficiary-popup{overflow:hidden;border-top:4px solid var(--category-color);color:#314c68}.beneficiary-popup header{display:flex;gap:.6rem;align-items:center;padding:.85rem .9rem .65rem;color:#073d82}.beneficiary-popup header small{display:block;margin-top:.1rem;color:#718198;font-size:.66rem}.category-icon{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;color:#fff;background:var(--category-color);font-weight:800}.beneficiary-popup dl{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin:0;padding:.15rem .9rem .85rem}.beneficiary-popup dl div{min-width:0}.beneficiary-popup dt{margin-bottom:.1rem;color:#7b8ca1;font-size:.62rem;font-weight:800;text-transform:uppercase}.beneficiary-popup dd{overflow:hidden;margin:0;color:#284561;font-size:.73rem;font-weight:700;text-overflow:ellipsis;white-space:nowrap}.status-badge{display:inline-block;border-radius:99px;padding:.17rem .42rem;font-size:.64rem}.status-badge.pending{color:#8a5b00;background:#fff3cd}.status-badge.approved,.status-badge.released,.status-badge.completed{color:#1d6b39;background:#e4f5e9}.case-link{display:flex;justify-content:space-between;padding:.65rem .9rem;color:#fff;background:#1565c0;font-size:.73rem;font-weight:800;text-decoration:none}.case-link:hover{background:#0d4f9b}.barangay-label{border:0!important;border-radius:4px!important;padding:2px 4px!important;color:#073d82!important;background:#ffffffe0!important;font-size:10px!important;font-weight:700!important;box-shadow:0 1px 3px #052b5b20}@keyframes marker-in{from{opacity:0;transform:scale(.35)}to{opacity:1;transform:scale(1)}}@keyframes marker-ring{to{opacity:0;transform:scale(1.65)}}@media(max-width:700px){.map-toolbar{align-items:flex-start}.map-filters{grid-template-columns:1fr 1fr}.map-filters label:first-child{grid-column:1/-1}.map-apply{grid-column:1/-1}.map-stage #map{height:580px}.map-legend{bottom:14px;left:12px;width:190px}}@media(prefers-reduced-motion:reduce){.beneficiary-marker,.beneficiary-marker:after{animation:none!important;transition:none!important}}
+    </style>
+    <style>
+    /* Operations-map redesign: the controls read as one calm workspace, while the map stays central. */
+    .map-shell{border:0;border-radius:22px;background:#073d82;box-shadow:0 20px 48px rgba(7,61,130,.18)}
+    .map-toolbar{min-height:110px;padding:1.5rem 1.65rem;border:0;color:#fff;background:linear-gradient(120deg,#06366f 0%,#1565c0 68%,#1b78cc 100%)}
+    .map-title-block,.map-toolbar-actions{display:flex;align-items:center;gap:.85rem}.map-title-icon{display:grid;place-items:center;width:42px;height:42px;border:1px solid rgba(255,255,255,.38);border-radius:13px;color:#ffd54f;background:rgba(255,255,255,.12);font-size:1.55rem}.map-toolbar h3{margin:.12rem 0;color:#fff;font-size:1.35rem;letter-spacing:-.02em}.map-eyebrow{color:#b9dcff;font-size:.64rem}.map-toolbar p:last-child{color:#d7eaff}.map-live-indicator{display:flex;align-items:center;gap:.38rem;color:#dff3e5;font-size:.72rem;font-weight:800}.map-live-indicator i{width:7px;height:7px;border-radius:99px;background:#66d17d;box-shadow:0 0 0 4px rgba(102,209,125,.15)}
+    .map-control-button{border:1px solid rgba(255,255,255,.28);border-radius:9px;padding:.65rem .85rem;background:rgba(255,255,255,.13);box-shadow:none}.map-control-button:hover{background:rgba(255,255,255,.24)}
+    .map-filters{margin:0 1rem;border:0;border-radius:0 0 14px 14px;padding:1rem 1.15rem;background:#fff;box-shadow:0 10px 22px rgba(5,43,91,.12)}.map-filters input,.map-filters select{border-color:#d5e1ed;background:#f8fbfe}.map-apply{border-radius:7px;background:#0f5fb8;box-shadow:none}
+    .map-stage{margin:1rem;border-radius:15px;overflow:hidden;border:5px solid #fff;background:#dceaf5;box-shadow:0 12px 24px rgba(3,35,76,.22)}.map-stage #map{height:680px}.map-corner-label{position:absolute;z-index:500;top:16px;left:16px;padding:.62rem .78rem;border-left:3px solid #fbc02d;border-radius:0 7px 7px 0;color:#38536f;background:rgba(255,255,255,.93);box-shadow:0 5px 16px rgba(7,61,130,.16)}.map-corner-label span{display:block;color:#1565c0;font-size:.56rem;font-weight:800;letter-spacing:.1em}.map-corner-label b{display:block;margin-top:.12rem;color:#073d82;font-size:.76rem}
+    .map-legend{bottom:20px;left:auto;right:18px;width:225px;border:0;border-radius:13px;padding:.85rem;background:rgba(255,255,255,.96);box-shadow:0 12px 28px rgba(5,43,91,.25)}.legend-heading{padding-bottom:.48rem;border-bottom:1px solid #e5edf6}.legend-item{padding:.42rem .35rem}.legend-item:hover{background:#edf5ff}.boundary-toggle{border-color:#b9cee3;color:#073d82;background:#f4f8fc}
+    .leaflet-control-zoom{overflow:hidden!important;border:0!important;border-radius:10px!important;box-shadow:0 5px 18px rgba(5,43,91,.24)!important}.leaflet-control-zoom a{width:34px!important;height:34px!important;border:0!important;color:#073d82!important;font-weight:800!important;line-height:34px!important}.leaflet-control-zoom a:hover{color:#fff!important;background:#1565c0!important}
+    @media(max-width:700px){.map-toolbar{min-height:auto;padding:1.1rem}.map-title-icon,.map-live-indicator{display:none}.map-toolbar-actions{margin-left:auto}.map-stage{margin:.65rem;border-width:3px}.map-stage #map{height:590px}.map-corner-label{top:12px;left:12px}.map-legend{right:10px;bottom:12px}.map-filters{margin:0}.map-toolbar h3{font-size:1.1rem}}
+    </style>
 </x-app-layout>

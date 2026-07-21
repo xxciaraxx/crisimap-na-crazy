@@ -20,6 +20,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/beneficiaries/duplicate-check', [BeneficiaryController::class, 'duplicateCheck'])->name('beneficiaries.duplicate-check');
     Route::get('/verification/{referenceCode}', [BeneficiaryController::class, 'verify'])->name('beneficiaries.verify');
     Route::resource('case-records', CaseRecordController::class);
+    Route::post('/case-records/{caseRecord}/advance', [CaseRecordController::class, 'advance'])->name('case-records.advance');
+    Route::post('/case-records/{caseRecord}/decision', [CaseRecordController::class, 'decide'])->name('case-records.decision');
     Route::resource('beneficiaries', BeneficiaryController::class);
     Route::get('/map', [MapController::class, 'index'])->name('map');
     Route::get('/map/data', [MapController::class, 'data'])->name('map.data');
@@ -29,7 +31,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/reports/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');
     Route::get('/reports/excel', [ReportController::class, 'excel'])->name('reports.excel');
 
-    Route::middleware('role:mswdo_head,technical_expert')->group(function () {
+    Route::middleware('role:super_admin')->group(function () {
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::post('/settings/barangays', [SettingsController::class, 'storeBarangay'])->name('settings.barangays.store');
         Route::delete('/settings/barangays/{barangay}', [SettingsController::class, 'destroyBarangay'])->name('settings.barangays.destroy');

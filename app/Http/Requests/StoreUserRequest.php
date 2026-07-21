@@ -17,8 +17,8 @@ class StoreUserRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'min:8', 'confirmed'],
-            'role' => ['required', 'in:mswdo_head,social_welfare_officer,aics_focal_person,technical_expert'],
-            'status' => ['required', 'in:active,inactive'],
+            'role' => ['required', 'in:social_officer,focal_person,admin,super_admin'],
+            'status' => ['required', 'in:pending,approved,rejected'],
         ];
     }
 }

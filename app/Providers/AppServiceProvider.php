@@ -14,12 +14,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        Gate::define('manage-users', function ($user) {
-            return in_array($user->role, ['mswdo_head', 'technical_expert'], true);
-        });
-
-        Gate::define('manage-settings', function ($user) {
-            return in_array($user->role, ['mswdo_head', 'technical_expert'], true);
-        });
+        Gate::define('manage-users', fn ($user) => $user->hasRole('super_admin'));
+        Gate::define('manage-settings', fn ($user) => $user->hasRole('super_admin'));
     }
 }

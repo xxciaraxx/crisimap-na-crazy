@@ -1,140 +1,65 @@
-<nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
-    <!-- Primary Navigation Menu -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-            <div class="flex">
-                <!-- Logo -->
-                <div class="shrink-0 flex items-center">
-                    <a href="{{ route('dashboard') }}">
-                        <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
-                    </a>
-                </div>
+@php
+    $user = Auth::user();
+    $navigation = collect(config('dashboard.navigation'))->filter(fn ($item) => empty($item['roles']) || in_array($user->role, $item['roles']));
+    $currentItem = $navigation->first(fn ($item) => request()->routeIs($item['match'] ?? $item['route']));
+    $pageTitle = $currentItem['label'] ?? 'CRISIMAP';
+@endphp
 
-                <!-- Navigation Links -->
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                        {{ __('Dashboard') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('beneficiaries.index')" :active="request()->routeIs('beneficiaries.*')">
-                        {{ __('Beneficiaries') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('case-records.index')" :active="request()->routeIs('case-records.*')">
-                        {{ __('Case Records') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('map')" :active="request()->routeIs('map')">
-                        {{ __('Map') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
-                        {{ __('Reports') }}
-                    </x-nav-link>
-                    @if(Auth::user()->role === 'mswdo_head' || Auth::user()->role === 'technical_expert')
-                        <x-nav-link :href="route('settings.index')" :active="request()->routeIs('settings.*')">
-                            {{ __('Settings') }}
-                        </x-nav-link>
-                        <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
-                            {{ __('Users') }}
-                        </x-nav-link>
-                    @endif
-                </div>
+<div x-cloak x-show="open" x-transition.opacity @click="open = false" class="app-sidebar-backdrop" aria-hidden="true"></div>
+
+    <aside class="app-sidebar" :class="{ 'is-open': open, 'is-collapsed': collapsed }" aria-label="Main navigation">
+        <a class="app-sidebar-brand" href="{{ route('dashboard') }}" :title="collapsed ? 'CRISIMAP' : ''">
+            <span class="app-brand-mark">C</span>
+            <span class="app-sidebar-copy"><strong>CRISI<span>MAP</span></strong><small>AICS PROGRAM</small></span>
+        </a>
+
+        <p class="app-nav-label app-sidebar-copy">Workspace</p>
+        <nav class="app-nav-links">
+            @foreach ($navigation->take(5) as $item)
+                @php($active = request()->routeIs($item['match'] ?? $item['route']))
+                <a href="{{ route($item['route']) }}" @click="open = false" class="{{ $active ? 'is-active' : '' }}" :title="collapsed ? '{{ $item['label'] }}' : ''">
+                    <span class="app-nav-icon" aria-hidden="true">
+                        @if($item['icon'] === 'home') ⌂ @elseif($item['icon'] === 'users') ♙ @elseif($item['icon'] === 'records') ▣ @elseif($item['icon'] === 'map') ⌖ @elseif($item['icon'] === 'reports') ▤ @else ⚙ @endif
+                    </span><span class="app-sidebar-copy">{{ $item['label'] }}</span>
+                </a>
+            @endforeach
+        </nav>
+
+        @if ($navigation->count() > 5)
+            <div class="app-admin-nav">
+                <p class="app-nav-label app-sidebar-copy">Administration</p>
+                <nav class="app-nav-links">
+                    @foreach ($navigation->skip(5) as $item)
+                        @php($active = request()->routeIs($item['match'] ?? $item['route']))
+                        <a href="{{ route($item['route']) }}" @click="open = false" class="{{ $active ? 'is-active' : '' }}" :title="collapsed ? '{{ $item['label'] }}' : ''"><span class="app-nav-icon" aria-hidden="true">{{ $item['icon'] === 'settings' ? '⚙' : '♙' }}</span><span class="app-sidebar-copy">{{ $item['label'] }}</span></a>
+                    @endforeach
+                </nav>
             </div>
+        @endif
 
-            <!-- Settings Dropdown -->
-            <div class="hidden sm:flex sm:items-center sm:ms-6">
-                <x-dropdown align="right" width="48">
-                    <x-slot name="trigger">
-                        <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
-                            <div>{{ Auth::user()->name }}</div>
-
-                            <div class="ms-1">
-                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                        </button>
-                    </x-slot>
-
-                    <x-slot name="content">
-                        <x-dropdown-link :href="route('profile.edit')">
-                            {{ __('Profile') }}
-                        </x-dropdown-link>
-
-                        <!-- Authentication -->
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-
-                            <x-dropdown-link :href="route('logout')"
-                                    onclick="event.preventDefault();
-                                                this.closest('form').submit();">
-                                {{ __('Log Out') }}
-                            </x-dropdown-link>
-                        </form>
-                    </x-slot>
-                </x-dropdown>
-            </div>
-
-            <!-- Hamburger -->
-            <div class="-me-2 flex items-center sm:hidden">
-                <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
-                    <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                        <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                        <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+        <div class="app-sidebar-footer">
+            <div class="app-profile-wrap">
+                <button @click="sidebarProfileOpen = !sidebarProfileOpen; notificationsOpen = false; topProfileOpen = false" class="app-account-details" :title="collapsed ? '{{ $user->name }}' : ''" :aria-expanded="sidebarProfileOpen.toString()">
+                    <span class="app-account-avatar">{{ strtoupper(substr($user->name, 0, 1)) }}</span>
+                    <span class="app-sidebar-copy"><strong>{{ $user->name }}</strong><small>{{ ucwords(str_replace('_', ' ', $user->role)) }}</small></span>
                 </button>
+                <div x-cloak x-show="sidebarProfileOpen" x-transition.origin.bottom.left @click.outside="sidebarProfileOpen = false" class="app-dropdown app-profile-dropdown">
+                    <a href="{{ route('profile.edit') }}">Profile</a>
+                    @if ($navigation->contains('route', 'settings.index')) <a href="{{ route('settings.index') }}">Settings</a> @endif
+                    <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit">Log out</button></form>
+                </div>
             </div>
+            <button @click="collapsed = !collapsed" class="app-collapse-toggle" :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'" :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"><span x-text="collapsed ? '›' : '‹'"></span><span class="app-sidebar-copy">Collapse</span></button>
         </div>
-    </div>
+    </aside>
 
-    <!-- Responsive Navigation Menu -->
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
-        <div class="pt-2 pb-3 space-y-1">
-            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                {{ __('Dashboard') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('beneficiaries.index')" :active="request()->routeIs('beneficiaries.*')">
-                {{ __('Beneficiaries') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('case-records.index')" :active="request()->routeIs('case-records.*')">
-                {{ __('Case Records') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('map')" :active="request()->routeIs('map')">
-                {{ __('Map') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
-                {{ __('Reports') }}
-            </x-responsive-nav-link>
-            @if(Auth::user()->role === 'mswdo_head' || Auth::user()->role === 'technical_expert')
-                <x-responsive-nav-link :href="route('settings.index')" :active="request()->routeIs('settings.*')">
-                    {{ __('Settings') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
-                    {{ __('Users') }}
-                </x-responsive-nav-link>
-            @endif
-        </div>
-
-        <!-- Responsive Settings Options -->
-        <div class="pt-4 pb-1 border-t border-gray-200">
-            <div class="px-4">
-                <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
-                <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
+    <header class="app-topbar" :class="{ 'is-collapsed': collapsed }">
+        <div class="app-topbar-title"><button @click="open = !open" class="app-menu-toggle" :aria-expanded="open.toString()" aria-label="Toggle navigation"><span x-show="!open">☰</span><span x-show="open">×</span></button><span class="app-topbar-kicker">Workspace</span><strong>{{ $pageTitle }}</strong></div>
+        <div class="app-topbar-actions">
+            <div class="app-notification-wrap">
+            <button @click="notificationsOpen = !notificationsOpen; sidebarProfileOpen = false; topProfileOpen = false" class="app-icon-button" aria-label="Notifications" :aria-expanded="notificationsOpen.toString()">♧<span class="app-notification-badge">0</span></button>
+                <div x-cloak x-show="notificationsOpen" x-transition.origin.top.right @click.outside="notificationsOpen = false" class="app-dropdown app-notification-dropdown"><strong>Notifications</strong><p>You’re all caught up.</p></div>
             </div>
-
-            <div class="mt-3 space-y-1">
-                <x-responsive-nav-link :href="route('profile.edit')">
-                    {{ __('Profile') }}
-                </x-responsive-nav-link>
-
-                <!-- Authentication -->
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-
-                    <x-responsive-nav-link :href="route('logout')"
-                            onclick="event.preventDefault();
-                                        this.closest('form').submit();">
-                        {{ __('Log Out') }}
-                    </x-responsive-nav-link>
-                </form>
-            </div>
+            <div class="app-profile-wrap"><button @click="topProfileOpen = !topProfileOpen; notificationsOpen = false; sidebarProfileOpen = false" class="app-top-profile" :aria-expanded="topProfileOpen.toString()"><span class="app-account-avatar">{{ strtoupper(substr($user->name, 0, 1)) }}</span><span>{{ $user->name }}</span></button><div x-cloak x-show="topProfileOpen" x-transition.origin.top.right @click.outside="topProfileOpen = false" class="app-dropdown app-top-profile-dropdown"><a href="{{ route('profile.edit') }}">Profile</a>@if ($navigation->contains('route', 'settings.index')) <a href="{{ route('settings.index') }}">Settings</a> @endif<form method="POST" action="{{ route('logout') }}">@csrf<button type="submit">Log out</button></form></div></div>
         </div>
-    </div>
-</nav>
+    </header>

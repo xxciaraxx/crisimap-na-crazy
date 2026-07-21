@@ -13,24 +13,28 @@
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @livewireStyles
     </head>
     <body class="font-sans antialiased">
-        <div class="min-h-screen bg-gray-100">
+        <div class="app-shell min-h-screen bg-gray-100" x-data="{ open: false, collapsed: false, sidebarProfileOpen: false, topProfileOpen: false, notificationsOpen: false, init() { const saved = localStorage.getItem('crisimap.sidebarCollapsed'); this.collapsed = saved === null ? {{ request()->routeIs('map') ? 'true' : 'false' }} : saved === 'true'; this.$watch('collapsed', value => localStorage.setItem('crisimap.sidebarCollapsed', value)); }, closeMenus() { this.sidebarProfileOpen = false; this.topProfileOpen = false; this.notificationsOpen = false; } }" :class="{ 'sidebar-collapsed': collapsed }" @keydown.escape.window="open = false; closeMenus()">
             @include('layouts.navigation')
 
-            <!-- Page Heading -->
-            @isset($header)
-                <header class="bg-white shadow">
-                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                        {{ $header }}
-                    </div>
-                </header>
-            @endisset
+            <div class="app-page-area">
+                <!-- Page Heading -->
+                @isset($header)
+                    <header class="bg-white shadow">
+                        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                            {{ $header }}
+                        </div>
+                    </header>
+                @endisset
 
-            <!-- Page Content -->
-            <main>
-                {{ $slot }}
-            </main>
+                <!-- Page Content -->
+                <main>
+                    {{ $slot }}
+                </main>
+            </div>
         </div>
+        @livewireScripts
     </body>
 </html>

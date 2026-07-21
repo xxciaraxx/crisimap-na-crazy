@@ -12,12 +12,12 @@
                         <div><label class="block text-sm">Name</label><input name="name" class="w-full border rounded px-3 py-2" required></div>
                         <div><label class="block text-sm">Email</label><input type="email" name="email" class="w-full border rounded px-3 py-2" required></div>
                         <div><label class="block text-sm">Role</label><select name="role" class="w-full border rounded px-3 py-2">
-                            <option value="mswdo_head">MSWDO Head</option>
-                            <option value="aics_focal_person">AICS Focal Person</option>
-                            <option value="social_welfare_officer">Social Welfare Officer</option>
-                            <option value="technical_expert">Technical Expert</option>
+                            <option value="social_officer">Social Officer</option>
+                            <option value="focal_person">Focal Person</option>
+                            <option value="admin">Admin (MSWDO Head)</option>
+                            <option value="super_admin">Super Administrator (IT)</option>
                         </select></div>
-                        <div><label class="block text-sm">Status</label><select name="status" class="w-full border rounded px-3 py-2"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+                        <div><label class="block text-sm">Status</label><select name="status" class="w-full border rounded px-3 py-2"><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div>
                         <div><label class="block text-sm">Password</label><input type="password" name="password" class="w-full border rounded px-3 py-2" required></div>
                         <div><label class="block text-sm">Confirm Password</label><input type="password" name="password_confirmation" class="w-full border rounded px-3 py-2" required></div>
                     </div>

@@ -35,6 +35,29 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    public const ROLES = ['social_officer', 'focal_person', 'admin', 'super_admin'];
+
+    public function hasRole(string ...$roles): bool
+    {
+        return in_array($this->role, $roles, true);
+    }
+
+    /** Map legacy stored role labels during the transition to fixed RBAC roles. */
+    public function setRoleAttribute(string $value): void
+    {
+        $this->attributes['role'] = [
+            'social_welfare_officer' => 'social_officer',
+            'aics_focal_person' => 'focal_person',
+            'mswdo_head' => 'admin',
+            'technical_expert' => 'super_admin',
+        ][$value] ?? $value;
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->status === 'approved';
+    }
+
     /**
      * Get the attributes that should be cast.
      *
