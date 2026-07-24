@@ -24,13 +24,32 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
-    <livewire:map-auto-loader />
     <script>
     (() => {
-        const map = L.map('map', { zoomControl: false }).setView([16.9301, 120.3604], 12);
+        const map = L.map('map', { zoomControl: false }).setView([16.9400, 120.4550], 13);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
-        const boundaryEndpoint = @json(route('map.boundaries'));
+        const mapContainer = document.getElementById('map');
+        const tileSources = [
+            { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', options: { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 } },
+            { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', options: { attribution: 'Tiles &copy; Esri', maxZoom: 19 } },
+        ];
+        let activeTileSource = 0, tileLayer;
+        function showTileSource(index) {
+            if (tileLayer) map.removeLayer(tileLayer);
+            activeTileSource = index;
+            tileLayer = L.tileLayer(tileSources[index].url, tileSources[index].options).addTo(map);
+            let failedTiles = 0;
+            tileLayer.on('tileerror', () => {
+                failedTiles += 1;
+                if (failedTiles === 3 && activeTileSource < tileSources.length - 1) showTileSource(activeTileSource + 1);
+                if (failedTiles === 3 && activeTileSource === tileSources.length - 1) {
+                    mapContainer.classList.add('map-tiles-unavailable');
+                    statusLine.textContent = 'Base-map tiles are unavailable. Barangay borders and records remain usable.';
+                }
+            });
+            tileLayer.on('load', () => mapContainer.classList.remove('map-tiles-unavailable'));
+        }
+        const endpoint = @json(route('map.data')), boundaryEndpoint = @json(route('map.boundaries'));
         const defaultCenter = [16.9301, 120.3604];
         const defaultZoom = 12;
         const form = document.getElementById('filter-form'), statusLine = document.getElementById('map-status');
@@ -87,7 +106,7 @@
             tagudinBounds = boundaryLayer.getBounds();
             resetMapView();
         }
-        function loadData() { statusLine.textContent = 'Updating map records…'; if (window.Livewire) { Livewire.dispatch('map-filters-changed', { filters: Object.fromEntries(new FormData(form)) }); } }
+        async function loadData() { statusLine.textContent = 'Updating map records…'; try { const response = await fetch(`${endpoint}?${new URLSearchParams(new FormData(form))}`, { headers: { Accept: 'application/json' } }); if (!response.ok) throw new Error('Map data request failed'); allRecords = (await response.json()).beneficiaries ?? []; drawRecords(); } catch { statusLine.textContent = 'Unable to load map records. Please try again.'; } }
         document.getElementById('filter-toggle').onclick = () => { form.hidden = !form.hidden; };
         document.getElementById('reset-map-view').onclick = () => {
             resetMapView();
@@ -100,7 +119,7 @@
         document.getElementById('legend-toggle').onclick = event => { const legend = document.getElementById('map-legend'); legend.classList.toggle('is-collapsed'); event.currentTarget.textContent = legend.classList.contains('is-collapsed') ? '+' : '−'; event.currentTarget.setAttribute('aria-expanded', String(!legend.classList.contains('is-collapsed'))); };
         document.getElementById('boundary-toggle').onclick = event => { boundariesShown = !boundariesShown; if (boundaryLayer) boundariesShown ? boundaryLayer.addTo(map) : boundaryLayer.remove(); event.currentTarget.textContent = boundariesShown ? 'Hide barangay borders' : 'Show barangay borders'; };
         let filterTimer; form.addEventListener('input', () => { clearTimeout(filterTimer); filterTimer = setTimeout(loadData, 350); }); form.addEventListener('change', loadData); form.addEventListener('submit', event => { event.preventDefault(); loadData(); }); map.on('zoomend', drawRecords);
-        document.addEventListener('livewire:init', () => { Livewire.on('map-records-updated', payload => { allRecords = payload.beneficiaries ?? []; drawRecords(); }); renderLegend(); loadBoundaries().then(loadData).catch(() => statusLine.textContent = 'Unable to load map records. Please try again.'); });
+        showTileSource(0); renderLegend(); loadBoundaries().then(loadData).catch(loadData);
     })();
     </script>
     <style>

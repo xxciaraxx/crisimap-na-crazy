@@ -23,6 +23,8 @@ class Beneficiary extends Model
         'address',
         'latitude',
         'longitude',
+        'geocode_precision',
+        'geocoded_at',
         'case_info',
         'amount',
         'date_of_assistance',
@@ -52,6 +54,7 @@ class Beneficiary extends Model
         'archived_at' => 'datetime',
         'latitude' => 'float',
         'longitude' => 'float',
+        'geocoded_at' => 'datetime',
         'amount' => 'decimal:2',
     ];
 

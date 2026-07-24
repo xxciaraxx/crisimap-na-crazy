@@ -10,6 +10,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             BarangaySeeder::class,
+            BarangayCentroidSeeder::class,
             AssistanceTypeSeeder::class,
             UserSeeder::class,
             BeneficiarySeeder::class,

@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 
 class MapController extends Controller
 {
+    private const DEFAULT_ASSISTANCE_TYPES = [
+        'Medical', 'Food', 'Livelihood', 'Education', 'Transportation', 'Construction Materials', 'Burial',
+    ];
     /** Fixed category presentation values shared by the map, legend, and popup. */
     private const CATEGORY_STYLES = [
         'medical' => ['color' => '#E53935', 'icon' => '✚'],
@@ -32,6 +35,13 @@ class MapController extends Controller
             'id' => $type->id,
             'name' => $type->name,
         ], $this->categoryStyle($type->name)));
+
+        $knownNames = $assistanceTypes->pluck('name')->map(fn (string $name) => strtolower($name));
+        foreach (self::DEFAULT_ASSISTANCE_TYPES as $name) {
+            if (! $knownNames->contains(strtolower($name))) {
+                $assistanceTypes->push(array_merge(['id' => 'default-'.strtolower(str_replace(' ', '-', $name)), 'name' => $name], $this->categoryStyle($name)));
+            }
+        }
 
         // A legacy record may not yet have an assistance type. Keep it visible
         // under the same gold "Other" category rather than silently dropping it.
@@ -82,7 +92,7 @@ class MapController extends Controller
 
         $beneficiaries = $query->whereNotNull('latitude')->whereNotNull('longitude')
             ->orderByDesc('date_of_assistance')->limit(5000)->get([
-                'id', 'name', 'reference_code', 'status', 'barangay_id', 'assistance_type_id',
+                'id', 'name', 'reference_code', 'status', 'barangay_id', 'assistance_type_id', 'geocode_precision',
                 'case_record_id', 'latitude', 'longitude', 'amount', 'date_of_assistance', 'encoded_by',
             ]);
 
@@ -93,6 +103,7 @@ class MapController extends Controller
                     'latitude' => $beneficiary->latitude,
                     'longitude' => $beneficiary->longitude,
                     'status' => $beneficiary->status,
+                    'geocode_precision' => $beneficiary->geocode_precision ?? 'manual',
                     'date_availed' => $beneficiary->date_of_assistance?->toDateString(),
                     'barangay' => $beneficiary->barangay?->name,
                     'category' => array_merge(['id' => $beneficiary->assistance_type_id ?? 'other', 'name' => $beneficiary->assistanceType?->name ?? 'Other / Miscellaneous'], $this->categoryStyle($beneficiary->assistanceType?->name)),
