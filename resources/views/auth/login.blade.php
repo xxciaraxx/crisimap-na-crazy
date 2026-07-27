@@ -8,6 +8,60 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        #loginPage .input-icon{
+            display:grid;
+            place-items:center;
+            width:1.25rem;
+            height:1.25rem;
+            color:#60728a;
+        }
+        #loginPage .input-icon svg,
+        #loginPage .security-note > span svg{
+            width:100%;
+            height:100%;
+            stroke:currentColor;
+            fill:none;
+            stroke-width:1.8;
+            stroke-linecap:round;
+            stroke-linejoin:round;
+        }
+        #loginPage .security-note > span{
+            width:1.35rem;
+            height:1.35rem;
+            flex:0 0 1.35rem;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+        }
+        #loginPage .feature{
+            transition:background 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+        }
+        #loginPage .feature small{
+            display:block !important;
+            position:static !important;
+            margin-top:.35rem;
+            opacity:1 !important;
+            transform:none !important;
+            pointer-events:auto !important;
+        }
+        #loginPage .feature:hover,
+        #loginPage .feature:focus-within{
+            background:#ffffff12;
+            border-color:#ffffff20;
+            box-shadow:0 10px 22px #01295747;
+        }
+        #loginPage .feature:hover p,
+        #loginPage .feature:focus-within p,
+        #loginPage .feature:hover small,
+        #loginPage .feature:focus-within small,
+        #loginPage .feature:hover span,
+        #loginPage .feature:focus-within span{
+            opacity:1 !important;
+            transform:none !important;
+            animation:none !important;
+        }
+    </style>
 </head>
 <body class="crisi-login">
     <main class="login-shell" id="loginPage">
@@ -24,9 +78,9 @@
                     <h1 id="welcome-title">A GIS-Based Monitoring &amp; Mapping System</h1>
                     <h2>For AICS Beneficiary Distribution</h2>
                 </div>
-                <p class="brand-description reveal reveal-description">A secure, data-informed platform for managing assistance to individuals in crisis situations and delivering better public service.</p>
+                <p class="brand-description reveal reveal-description">Create your authorized staff account to manage beneficiary records, map service delivery, and support accountable public assistance.</p>
                 <div class="feature-grid reveal reveal-features" aria-label="CRISIMAP capabilities">
-                    <div class="feature"><span>♟</span><p>Beneficiary<br>Management</p><small>Organized and accountable records.</small></div><div class="feature feature-location"><span>●</span><p>GIS Mapping &<br>Visualization</p><small>Location-informed service delivery.</small></div><div class="feature feature-report"><span>▤</span><p>Analytics &amp;<br>Reports</p><small>Clear, actionable program insights.</small></div><div class="feature feature-shield"><span>⌾</span><p>Secure &amp;<br>Reliable</p><small>Protected staff access and audit trails.</small></div>
+                    <div class="feature"><span>♟</span><p>Beneficiary<br>Management</p><small>Organized and accountable records.</small></div><div class="feature feature-location"><span>●</span><p>GIS Mapping &amp;<br>Visualization</p><small>Location-informed service delivery.</small></div><div class="feature feature-report"><span>▤</span><p>Analytics &amp;<br>Reports</p><small>Clear, actionable program insights.</small></div><div class="feature feature-shield"><span>⌾</span><p>Secure &amp;<br>Reliable</p><small>Protected staff access and audit trails.</small></div>
                 </div>
             </div>
             <footer class="brand-footer reveal reveal-footer"><span class="footer-shield">✓</span><span>Empowering MSWDO Tagudin through technology<br>for better service and data-driven decision making.</span></footer>
@@ -37,18 +91,18 @@
             <div class="login-card">
                 <div class="form-heading"><p class="eyebrow">SECURE STAFF ACCESS</p><h2 id="signin-title">Sign in to CRISIMAP</h2><p>Access your account to continue.</p></div>
                 @if (session('status'))<div class="status-message" role="status">{{ session('status') }}</div>@endif
-                <aside class="security-note"><span>⌾</span><p><strong>Protected system access</strong><br>Activities are monitored and logged for authorized MSWDO Tagudin personnel.</p></aside>
+                <aside class="security-note"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.75 20.25 6.5v4.78c0 4.76-3.15 8.84-8.25 10.97-5.1-2.13-8.25-6.21-8.25-10.97V6.5L12 3.75Z"/><path d="m9.5 12.1 1.9 1.9 3.6-3.6"/></svg></span><p><strong>Protected system access</strong><br>Activities are monitored and logged for authorized MSWDO Tagudin personnel.</p></aside>
                 <form method="POST" action="{{ route('login') }}" id="loginForm" novalidate>
                     @csrf
                     <div class="input-group @error('email') has-error @enderror">
                         <label for="email">Email address</label>
-                        <span class="input-icon" aria-hidden="true">◉</span>
+                        <span class="input-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"/><path d="M4.5 20.25a7.5 7.5 0 0 1 15 0"/></svg></span>
                         <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="Email address" aria-describedby="email-error">
                         @error('email')<p class="field-error" id="email-error">{{ $message }}</p>@enderror
                     </div>
                     <div class="input-group @error('password') has-error @enderror">
                         <label for="password">Password</label>
-                        <span class="input-icon lock-icon" aria-hidden="true">▣</span>
+                        <span class="input-icon lock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16.5 10.5V7.875a4.5 4.5 0 1 0-9 0V10.5"/><path d="M6.75 10.5h10.5a1.5 1.5 0 0 1 1.5 1.5v6.75a1.5 1.5 0 0 1-1.5 1.5H6.75a1.5 1.5 0 0 1-1.5-1.5V12a1.5 1.5 0 0 1 1.5-1.5Z"/></svg></span>
                         <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="Password" aria-describedby="password-error">
                         <button class="password-toggle" type="button" aria-controls="password" aria-label="Show password">SHOW</button>
                         @error('password')<p class="field-error" id="password-error">{{ $message }}</p>@enderror
