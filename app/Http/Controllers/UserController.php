@@ -12,6 +12,7 @@ class UserController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', User::class);
         $users = User::latest()->paginate(10);
 
         return view('users.index', compact('users'));
@@ -19,11 +20,13 @@ class UserController extends Controller
 
     public function create()
     {
+        $this->authorize('create', User::class);
         return view('users.create');
     }
 
     public function store(StoreUserRequest $request)
     {
+        $this->authorize('create', User::class);
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -45,16 +48,18 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
+        $this->authorize('update', $user);
         return view('users.edit', compact('user'));
     }
 
     public function update(Request $request, User $user)
     {
+        $this->authorize('update', $user);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email,'.$user->id],
-            'role' => ['required', 'in:mswdo_head,social_welfare_officer,aics_focal_person,technical_expert'],
-            'status' => ['required', 'in:active,inactive'],
+            'role' => ['required', 'in:social_officer,focal_person,admin,super_admin'],
+            'status' => ['required', 'in:pending,approved,rejected'],
             'password' => ['nullable', 'min:8', 'confirmed'],
         ]);
 
@@ -71,6 +76,7 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        $this->authorize('delete', $user);
         $user->delete();
 
         return redirect()->route('users.index')->with('success', 'User deleted.');

@@ -44,8 +44,6 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
-        Auth::login($user);
-
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->route('login')->with('status', 'Your account request has been submitted for system administrator approval.');
     }
 }

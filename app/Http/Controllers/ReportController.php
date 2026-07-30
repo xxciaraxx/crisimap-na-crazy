@@ -97,6 +97,10 @@ class ReportController extends Controller
     {
         $query = Beneficiary::query()->active();
 
+        if ($request->user()->role === 'social_officer') {
+            $query->where('encoded_by', $request->user()->id);
+        }
+
         $this->applyDatePreset($query, $request->input('report_type', 'summary'));
 
         if ($request->filled('barangay_id')) {

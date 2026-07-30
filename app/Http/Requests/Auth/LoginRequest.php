@@ -6,6 +6,7 @@ use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -42,7 +43,16 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        $user = User::where('email', $this->string('email'))->first();
+        if ($user && ! $user->isApproved()) {
+            $message = $user->status === 'pending'
+                ? 'Your account is pending approval by the system administrator.'
+                : 'Your account request was not approved. Contact your system administrator.';
+
+            throw ValidationException::withMessages(['email' => $message]);
+        }
+
+        if (! Auth::attempt(array_merge($this->only('email', 'password'), ['status' => 'approved']), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([

@@ -10,6 +10,8 @@ use App\Models\Attachment;
 use App\Models\Barangay;
 use App\Models\Beneficiary;
 use App\Models\CaseRecord;
+use App\Jobs\GeocodeBeneficiary;
+use App\Services\BeneficiaryGeocoder;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -22,6 +24,7 @@ class BeneficiaryController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Beneficiary::class);
         $query = $this->filteredQuery($request)
             ->with(['barangay', 'assistanceType', 'caseRecord', 'encoder', 'overrideUser'])
             ->orderByDesc('date_of_assistance')
@@ -38,6 +41,7 @@ class BeneficiaryController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Beneficiary::class);
         return view('beneficiaries.create', [
             'barangays' => Barangay::orderBy('name')->get(),
             'assistanceTypes' => AssistanceType::orderBy('name')->get(),
@@ -48,11 +52,13 @@ class BeneficiaryController extends Controller
 
     public function store(StoreBeneficiaryRequest $request)
     {
+        $this->authorize('create', Beneficiary::class);
         return $this->persist($request->validated(), $request);
     }
 
     public function show(Beneficiary $beneficiary)
     {
+        $this->authorize('view', $beneficiary);
         $beneficiary->load(['barangay', 'assistanceType', 'attachments.uploader', 'encoder', 'overrideUser']);
 
         return view('beneficiaries.show', array_merge(
@@ -63,6 +69,7 @@ class BeneficiaryController extends Controller
 
     public function edit(Beneficiary $beneficiary)
     {
+        $this->authorize('update', $beneficiary);
         return view('beneficiaries.edit', [
             'beneficiary' => $beneficiary,
             'barangays' => Barangay::orderBy('name')->get(),
@@ -74,11 +81,13 @@ class BeneficiaryController extends Controller
 
     public function update(UpdateBeneficiaryRequest $request, Beneficiary $beneficiary)
     {
+        $this->authorize('update', $beneficiary);
         return $this->persist($request->validated(), $request, $beneficiary);
     }
 
     public function destroy(Beneficiary $beneficiary)
     {
+        $this->authorize('delete', $beneficiary);
         $beneficiary->delete();
         $this->logActivity('deleted', 'Deleted beneficiary record for '.$beneficiary->name, $beneficiary);
 
@@ -166,9 +175,17 @@ class BeneficiaryController extends Controller
             ]);
         }
 
-        if ($request->filled('latitude') === false || $request->filled('longitude') === false) {
-            $payload['latitude'] = $payload['latitude'] ?? $this->geocodeAddress($payload['address'] ?? null);
-            $payload['longitude'] = $payload['longitude'] ?? $this->geocodeAddress($payload['address'] ?? null, 'longitude');
+        $manualLocation = $request->filled('latitude') && $request->filled('longitude');
+        if ($manualLocation) {
+            $payload['geocode_precision'] = 'manual';
+            $payload['geocoded_at'] = now();
+        } elseif (! $beneficiary || $beneficiary->geocode_precision !== 'manual') {
+            $fallback = app(BeneficiaryGeocoder::class)->centroidFor($payload['barangay_id'] ?? null);
+            if ($fallback) {
+                $payload += $fallback;
+                $payload['geocode_precision'] = 'barangay_centroid';
+                $payload['geocoded_at'] = now();
+            }
         }
 
         $payload['eligibility_checked_at'] = now();
@@ -198,6 +215,9 @@ class BeneficiaryController extends Controller
         }
 
         $this->syncStatusTimestamps($beneficiary);
+        if (! $manualLocation && filled($beneficiary->address) && $beneficiary->geocode_precision !== 'manual') {
+            GeocodeBeneficiary::dispatch($beneficiary->id)->delay(now()->addSecond());
+        }
         $this->storeAttachments($request, $beneficiary);
         $this->logActivity($action, $description, $beneficiary);
 
@@ -395,33 +415,6 @@ class BeneficiaryController extends Controller
         return $query;
     }
 
-    private function geocodeAddress(?string $address, string $field = 'latitude')
-    {
-        if (blank($address)) {
-            return null;
-        }
-
-        try {
-            $response = Http::withHeaders([
-                'User-Agent' => 'CRISIMAP/1.0',
-            ])->get('https://nominatim.openstreetmap.org/search', [
-                'format' => 'jsonv2',
-                'q' => $address.', Tagudin, Ilocos Sur, Philippines',
-                'limit' => 1,
-            ]);
-
-            if ($response->successful() && ! empty($response->json()[0])) {
-                $result = $response->json()[0];
-
-                return $field === 'longitude' ? (float) $result['lon'] : (float) $result['lat'];
-            }
-        } catch (\Throwable $e) {
-            return null;
-        }
-
-        return null;
-    }
-
     private function logActivity(string $action, string $description, Beneficiary $beneficiary): void
     {
         ActivityLog::create([
@@ -437,6 +430,6 @@ class BeneficiaryController extends Controller
     {
         $user = auth()->user();
 
-        return $user && in_array($user->role, ['mswdo_head', 'technical_expert'], true);
+        return $user && $user->hasRole('super_admin');
     }
 }
