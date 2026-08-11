@@ -5,7 +5,7 @@
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">Beneficiary Records</h2>
                 <p class="text-sm text-gray-500">Search, verify, and track assistance history.</p>
             </div>
-            <a href="{{ route('beneficiaries.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Add Beneficiary</a>
+            <div class="flex gap-2"><a href="{{ route('beneficiaries.import.create') }}" class="rounded bg-slate-600 px-4 py-2 text-white">Import</a><a href="{{ route('beneficiaries.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded">Add Beneficiary</a></div>
         </div>
     </x-slot>
 
@@ -32,6 +32,7 @@
                         <option value="Approved" @selected(request('status') == 'Approved')>Approved</option>
                         <option value="Released" @selected(request('status') == 'Released')>Released</option>
                         <option value="Completed" @selected(request('status') == 'Completed')>Completed</option>
+                        <option value="Rejected" @selected(request('status') == 'Rejected')>Rejected</option>
                     </select>
                     <input type="date" name="from" value="{{ request('from') }}" class="border rounded px-3 py-2" />
                     <input type="date" name="to" value="{{ request('to') }}" class="border rounded px-3 py-2" />
@@ -67,7 +68,7 @@
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->assistanceType->name ?? '—' }}</td>
                                     <td class="px-4 py-3 text-sm">PHP {{ number_format((float) ($beneficiary->amount ?? 0), 2) }}</td>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->date_of_assistance?->format('M d, Y') }}</td>
-                                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs {{ $beneficiary->status === 'Completed' ? 'bg-green-100 text-green-700' : ($beneficiary->status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700') }}">{{ $beneficiary->status }}</span></td>
+                                    <td class="px-4 py-3"><x-status-badge :status="$beneficiary->status" title="{{ $beneficiary->status === 'Rejected' ? $beneficiary->rejection_reason : '' }}" /></td>
                                     <td class="px-4 py-3 space-x-2 text-sm">
                                         <a href="{{ route('beneficiaries.show', $beneficiary) }}" class="text-blue-600">View</a>
                                         <a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="text-green-600">Edit</a>

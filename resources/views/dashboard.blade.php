@@ -21,21 +21,7 @@
                             <h3 class="font-semibold text-lg">Monthly Trends</h3>
                             <p class="text-xs text-gray-500">{{ $forecast['label'] }}</p>
                         </div>
-                        <div class="space-y-3">
-                            @forelse($growthTrend as $trend)
-                                <div>
-                                    <div class="flex justify-between text-sm mb-1">
-                                        <span>{{ $trend['month'] }}</span>
-                                        <span>{{ $trend['total'] }} @if(!is_null($trend['growth']))({{ $trend['growth'] }}%)@endif</span>
-                                    </div>
-                                    <div class="h-3 rounded bg-gray-100 overflow-hidden">
-                                        <div class="h-3 bg-blue-600 rounded" style="width: {{ min(100, max(5, $trend['total'] * 5)) }}%"></div>
-                                    </div>
-                                </div>
-                            @empty
-                                <p class="text-sm text-gray-500">No monthly trend data yet.</p>
-                            @endforelse
-                        </div>
+                        @if(count($growthTrend))<div class="h-72"><canvas id="monthly-trends-chart"></canvas></div>@else<p class="text-sm text-gray-500">No monthly trend data yet.</p>@endif
                         <div class="mt-4 rounded-lg border border-dashed border-blue-300 bg-blue-50 p-4">
                             <p class="text-sm text-blue-900">Estimated next month demand: <strong>{{ number_format($forecast['next_month_estimate'], 1) }}</strong> applications.</p>
                         </div>
@@ -148,3 +134,13 @@
         </div>
     </div>
 </x-app-layout>
+@if(count($growthTrend))
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script>
+        new Chart(document.getElementById('monthly-trends-chart'), {
+            type: 'line',
+            data: { labels: @json(collect($growthTrend)->pluck('month')), datasets: [{ label: 'Applications', data: @json(collect($growthTrend)->pluck('total')), borderColor: '#1565c0', backgroundColor: 'rgba(21, 101, 192, .14)', fill: true, tension: .28, pointRadius: 4 }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { tooltip: { callbacks: { afterLabel: context => `Forecast: {{ $forecast['next_month_estimate'] }} next month` } } } }
+        });
+    </script>
+@endif

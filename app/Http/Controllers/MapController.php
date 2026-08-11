@@ -6,6 +6,7 @@ use App\Models\AssistanceType;
 use App\Models\Barangay;
 use App\Models\Beneficiary;
 use App\Support\TagudinBarangays;
+use App\Support\DateRangeResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -65,6 +66,11 @@ class MapController extends Controller
                 'encoder:id,name',
             ]);
 
+        $historyView = $request->input('view') === 'history';
+        if ($historyView) {
+            $query->whereIn('status', ['Approved', 'Released', 'Completed']);
+        }
+
         // Social officers can only receive markers belonging to cases they submitted.
         // The restrictions happen in the query, not merely in the popup UI.
         if ($user->role === 'social_officer') {
@@ -83,17 +89,20 @@ class MapController extends Controller
                 ->where('name', 'like', '%'.$search.'%')
                 ->orWhere('reference_code', 'like', '%'.$search.'%'));
         }
-        if ($request->filled('from')) {
-            $query->whereDate('date_of_assistance', '>=', $request->date('from'));
+        [$from, $to] = $request->filled('from') || $request->filled('to')
+            ? [$request->date('from'), $request->date('to')]
+            : (DateRangeResolver::resolve($request->input('period')) ?? [null, null]);
+        if ($from) {
+            $query->whereDate('date_of_assistance', '>=', $from);
         }
-        if ($request->filled('to')) {
-            $query->whereDate('date_of_assistance', '<=', $request->date('to'));
+        if ($to) {
+            $query->whereDate('date_of_assistance', '<=', $to);
         }
 
         $beneficiaries = $query->whereNotNull('latitude')->whereNotNull('longitude')
             ->orderByDesc('date_of_assistance')->limit(5000)->get([
                 'id', 'name', 'reference_code', 'status', 'barangay_id', 'assistance_type_id', 'geocode_precision',
-                'case_record_id', 'latitude', 'longitude', 'amount', 'date_of_assistance', 'encoded_by',
+                'case_record_id', 'latitude', 'longitude', 'amount', 'date_of_assistance', 'approved_at', 'encoded_by', 'rejection_reason',
             ]);
 
         return response()->json([
@@ -105,6 +114,8 @@ class MapController extends Controller
                     'status' => $beneficiary->status,
                     'geocode_precision' => $beneficiary->geocode_precision ?? 'manual',
                     'date_availed' => $beneficiary->date_of_assistance?->toDateString(),
+                    'approved_at' => $beneficiary->approved_at?->toDateString(),
+                    'rejection_reason' => $beneficiary->rejection_reason,
                     'barangay' => $beneficiary->barangay?->name,
                     'category' => array_merge(['id' => $beneficiary->assistance_type_id ?? 'other', 'name' => $beneficiary->assistanceType?->name ?? 'Other / Miscellaneous'], $this->categoryStyle($beneficiary->assistanceType?->name)),
                     // Only roles entitled to a case record receive identifying case fields.
@@ -118,7 +129,7 @@ class MapController extends Controller
                     ],
                 ];
             })->values(),
-            'summary' => ['count' => $beneficiaries->count()],
+            'summary' => ['count' => $beneficiaries->count(), 'view' => $historyView ? 'history' : 'live'],
         ]);
     }
 

@@ -1,0 +1,12 @@
+<x-guest-layout>
+    <form method="POST" action="{{ route('account.setup.store') }}" class="space-y-5">
+        @csrf
+        <div><h1 class="text-2xl font-semibold text-slate-900">Complete your account setup</h1><p class="mt-1 text-sm text-slate-600">Set your personal username, email, and secure password before continuing.</p></div>
+        <div><x-input-label for="username" value="Username" /><x-text-input id="username" class="mt-1 block w-full" name="username" :value="old('username')" required autofocus autocomplete="username" /><x-input-error :messages="$errors->get('username')" class="mt-2" /></div>
+        <div><x-input-label for="email" value="Email" /><x-text-input id="email" class="mt-1 block w-full" name="email" :value="old('email')" required autocomplete="email" /><x-input-error :messages="$errors->get('email')" class="mt-2" /></div>
+        <div><x-input-label for="password" value="New password" /><x-text-input id="password" class="mt-1 block w-full" type="password" name="password" required autocomplete="new-password" /><div class="mt-2 h-2 overflow-hidden rounded bg-slate-200"><div id="password-strength" class="h-full w-0 transition-all"></div></div><p id="password-strength-label" class="mt-1 text-xs text-slate-500">Use 8+ characters with upper/lowercase, number, and symbol.</p><x-input-error :messages="$errors->get('password')" class="mt-2" /></div>
+        <div><x-input-label for="password_confirmation" value="Confirm password" /><x-text-input id="password_confirmation" class="mt-1 block w-full" type="password" name="password_confirmation" required autocomplete="new-password" /></div>
+        <x-primary-button>Save and continue</x-primary-button>
+    </form>
+    <script>document.querySelector('#password')?.addEventListener('input', function () { const value=this.value, score=[value.length>=8,value.length>=12,/[a-z]/.test(value)&&/[A-Z]/.test(value),/\d/.test(value),/[^A-Za-z0-9]/.test(value)].filter(Boolean).length, bar=document.querySelector('#password-strength'), label=document.querySelector('#password-strength-label'), names=['Weak','Weak','Medium','Strong','Strong'], colors=['bg-red-500','bg-red-500','bg-amber-500','bg-emerald-500','bg-emerald-500']; bar.className='h-full transition-all '+colors[Math.max(0,score-1)]; bar.style.width=(score*20)+'%'; label.textContent=value ? names[Math.max(0,score-1)] : 'Use 8+ characters with upper/lowercase, number, and symbol.'; });</script>
+</x-guest-layout>

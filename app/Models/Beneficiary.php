@@ -39,6 +39,9 @@ class Beneficiary extends Model
         'approved_at',
         'released_at',
         'completed_at',
+        'rejection_reason',
+        'rejected_at',
+        'rejected_by',
         'archived_at',
         'encoded_by',
     ];
@@ -51,6 +54,7 @@ class Beneficiary extends Model
         'approved_at' => 'datetime',
         'released_at' => 'datetime',
         'completed_at' => 'datetime',
+        'rejected_at' => 'datetime',
         'archived_at' => 'datetime',
         'latitude' => 'float',
         'longitude' => 'float',
@@ -88,6 +92,11 @@ class Beneficiary extends Model
     public function overrideUser()
     {
         return $this->belongsTo(User::class, 'override_by');
+    }
+
+    public function rejectedBy()
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
     }
 
     public function attachments()
@@ -149,5 +158,20 @@ class Beneficiary extends Model
     public function normalizeContact(?string $contact): string
     {
         return preg_replace('/\D+/', '', (string) $contact) ?: '';
+    }
+
+    public function canTransitionTo(string $status): bool
+    {
+        if ($status === $this->status) {
+            return true;
+        }
+
+        return in_array($status, [
+            'Pending' => ['Approved', 'Rejected'],
+            'Approved' => ['Released'],
+            'Released' => ['Completed'],
+            'Completed' => [],
+            'Rejected' => [],
+        ][$this->status] ?? [], true);
     }
 }

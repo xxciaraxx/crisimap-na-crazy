@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureRole::class,
+            'setup.complete' => \App\Http\Middleware\EnsureAccountSetupComplete::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

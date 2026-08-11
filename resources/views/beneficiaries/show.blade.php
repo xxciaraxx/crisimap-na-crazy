@@ -7,6 +7,8 @@
             </div>
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="bg-blue-600 text-white px-4 py-2 rounded">Edit</a>
+                @if(in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden']))<a target="_blank" href="{{ route('beneficiaries.application-form', $beneficiary) }}" class="bg-gray-700 text-white px-4 py-2 rounded">Print Application Form</a>@endif
+                @if(in_array($beneficiary->status, ['Approved', 'Released', 'Completed']))<a target="_blank" href="{{ route('beneficiaries.certificate', $beneficiary) }}" class="bg-green-700 text-white px-4 py-2 rounded">Print Certificate of Eligibility</a>@endif
                 @if($beneficiary->reference_code)
                     <a href="{{ route('beneficiaries.verify', $beneficiary->reference_code) }}" class="bg-gray-800 text-white px-4 py-2 rounded">Verify QR</a>
                 @endif
@@ -21,9 +23,11 @@
 
     <div class="py-6">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            <x-breadcrumbs :items="[['label' => 'Beneficiaries', 'url' => route('beneficiaries.index')], ['label' => $beneficiary->reference_code ?? $beneficiary->name]]" />
             @if(session('warning'))
                 <div class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">{{ session('warning') }}</div>
             @endif
+            @if(session('error'))<div class="rounded-lg border border-red-300 bg-red-50 p-4 text-red-900">{{ session('error') }}</div>@endif
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="bg-white shadow rounded-lg p-6">
                     <h3 class="font-semibold text-lg mb-4">Profile</h3>
@@ -40,6 +44,7 @@
                         <div><dt class="text-gray-500">Eligibility</dt><dd class="font-semibold">{{ $beneficiary->eligibility_status ?? 'Eligible' }}</dd></div>
                         <div><dt class="text-gray-500">Address</dt><dd class="font-semibold">{{ $beneficiary->address ?? 'N/A' }}</dd></div>
                         <div><dt class="text-gray-500">Coordinates</dt><dd class="font-semibold">{{ $beneficiary->latitude }}, {{ $beneficiary->longitude }}</dd></div>
+                        @if($beneficiary->status === 'Rejected')<div class="col-span-2"><dt class="text-gray-500">Rejection Remarks</dt><dd class="font-semibold text-red-700">{{ $beneficiary->rejection_reason }}</dd><dd class="text-xs text-gray-500">{{ $beneficiary->rejected_at?->format('M d, Y h:i A') }} by {{ $beneficiary->rejectedBy?->name ?? 'N/A' }}</dd></div>@endif
                     </dl>
                 </div>
 
@@ -74,6 +79,7 @@
                             <p class="text-sm text-gray-500">QR code will be available once the record is saved.</p>
                         @endif
                     </div>
+                    @can('reject', $beneficiary)<div class="mt-6 border-t pt-4"><button type="button" @click="$dispatch('open-modal', 'reject-application')" class="rounded bg-red-600 px-4 py-2 text-white">Reject Application</button><x-modal name="reject-application" focusable><form action="{{ route('beneficiaries.reject', $beneficiary) }}" method="POST" class="p-6">@csrf<h3 class="text-lg font-semibold text-gray-900">Reject this application?</h3><p class="mt-2 text-sm text-gray-600">This decision is recorded in the audit trail and cannot be reversed.</p><label class="mt-4 block text-sm font-medium text-gray-700">Reason for rejection</label><textarea required maxlength="2000" name="rejection_reason" class="mt-2 w-full rounded border-gray-300" placeholder="State the reason for rejection"></textarea><div class="mt-5 flex justify-end gap-3"><button type="button" @click="$dispatch('close')" class="rounded border px-4 py-2">Cancel</button><button class="rounded bg-red-600 px-4 py-2 text-white">Confirm Rejection</button></div></form></x-modal></div>@endcan
                 </div>
 
                 <div class="bg-white shadow rounded-lg p-6">

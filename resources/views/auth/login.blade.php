@@ -94,11 +94,11 @@
                 <aside class="security-note"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.75 20.25 6.5v4.78c0 4.76-3.15 8.84-8.25 10.97-5.1-2.13-8.25-6.21-8.25-10.97V6.5L12 3.75Z"/><path d="m9.5 12.1 1.9 1.9 3.6-3.6"/></svg></span><p><strong>Protected system access</strong><br>Activities are monitored and logged for authorized MSWDO Tagudin personnel.</p></aside>
                 <form method="POST" action="{{ route('login') }}" id="loginForm" novalidate>
                     @csrf
-                    <div class="input-group @error('email') has-error @enderror">
-                        <label for="email">Email address</label>
+                    <div class="input-group @error('identifier') has-error @enderror">
+                        <label for="identifier">Username or email</label>
                         <span class="input-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"/><path d="M4.5 20.25a7.5 7.5 0 0 1 15 0"/></svg></span>
-                        <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="Email address" aria-describedby="email-error">
-                        @error('email')<p class="field-error" id="email-error">{{ $message }}</p>@enderror
+                        <input id="identifier" name="identifier" type="text" value="{{ old('identifier') }}" required autofocus autocomplete="username" placeholder="Username or email" aria-describedby="identifier-error">
+                        @error('identifier')<p class="field-error" id="identifier-error">{{ $message }}</p>@enderror
                     </div>
                     <div class="input-group @error('password') has-error @enderror">
                         <label for="password">Password</label>

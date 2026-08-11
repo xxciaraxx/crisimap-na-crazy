@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use App\Rules\SingleAccountRole;
 
 class UserController extends Controller
 {
@@ -58,7 +59,7 @@ class UserController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email,'.$user->id],
-            'role' => ['required', 'in:social_officer,focal_person,admin,super_admin'],
+            'role' => ['required', 'in:social_officer,focal_person,admin,super_admin', new SingleAccountRole($user->id)],
             'status' => ['required', 'in:pending,approved,rejected'],
             'password' => ['nullable', 'min:8', 'confirmed'],
         ]);
@@ -77,6 +78,9 @@ class UserController extends Controller
     public function destroy(User $user)
     {
         $this->authorize('delete', $user);
+        if ($user->role === 'super_admin' && User::where('role', 'super_admin')->count() === 1) {
+            return back()->with('error', 'The last System Administrator account cannot be deleted.');
+        }
         $user->delete();
 
         return redirect()->route('users.index')->with('success', 'User deleted.');

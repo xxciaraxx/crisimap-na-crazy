@@ -38,4 +38,18 @@ class CaseRecord extends Model
     public function encoder() { return $this->belongsTo(User::class, 'encoded_by'); }
     public function householdMembers() { return $this->hasMany(HouseholdMember::class); }
     public function beneficiaries() { return $this->hasMany(Beneficiary::class); }
+
+    public function canTransitionTo(string $status): bool
+    {
+        if ($status === $this->status) {
+            return true;
+        }
+
+        return in_array($status, [
+            'submitted' => ['under_review'],
+            'under_review' => ['approved', 'rejected'],
+            'approved' => [],
+            'rejected' => [],
+        ][$this->status] ?? [], true);
+    }
 }

@@ -58,6 +58,7 @@
                     </select>
                     <input type="date" name="from" value="{{ request('from') }}" class="border rounded px-3 py-2" />
                     <input type="date" name="to" value="{{ request('to') }}" class="border rounded px-3 py-2" />
+                    <select name="period" class="border rounded px-3 py-2"><option value="">All periods</option>@for($year = now()->year + 3; $year >= now()->year - 3; $year--)<option value="{{ $year }}" @selected(request('period') == $year)>{{ $year }}</option>@foreach(range(1, 4) as $quarter)<option value="{{ $year }}-Q{{ $quarter }}" @selected(request('period') === $year.'-Q'.$quarter)>{{ $year }} Q{{ $quarter }}</option>@endforeach@endfor</select>
                     <div class="space-x-2 xl:col-span-6">
                         <button class="bg-blue-600 text-white px-4 py-2 rounded">Filter</button>
                         <a href="{{ route('reports.pdf', request()->query()) }}" class="bg-red-600 text-white px-4 py-2 rounded inline-block">PDF</a>

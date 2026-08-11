@@ -9,6 +9,9 @@ use App\Models\CaseRecord;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\User;
+use App\Notifications\WorkflowNotification;
 
 class CaseRecordController extends Controller
 {
@@ -54,6 +57,15 @@ class CaseRecordController extends Controller
         return view('case-records.show', compact('caseRecord'));
     }
 
+    public function print(CaseRecord $caseRecord)
+    {
+        $this->authorize('view', $caseRecord);
+        $caseRecord->load(['barangay', 'encoder', 'householdMembers']);
+
+        return Pdf::loadView('case-records.print', compact('caseRecord'))
+            ->download('case-record-'.$caseRecord->case_number.'.pdf');
+    }
+
     public function edit(CaseRecord $caseRecord)
     {
         $this->authorize('update', $caseRecord);
@@ -73,8 +85,10 @@ class CaseRecordController extends Controller
     public function advance(Request $request, CaseRecord $caseRecord)
     {
         $this->authorize('advance', $caseRecord);
+        abort_unless($caseRecord->canTransitionTo('under_review'), 422, 'This case record cannot be forwarded from its current status.');
         $caseRecord->update(['status' => 'under_review']);
         $this->logStatusChange($caseRecord, 'under_review');
+        User::query()->whereIn('role', ['focal_person', 'admin'])->get()->each->notify(new WorkflowNotification('Case record awaiting review', "Case {$caseRecord->case_number} has been forwarded for review.", route('case-records.show', $caseRecord)));
         return back()->with('success', 'Case record forwarded for admin review.');
     }
 
@@ -82,8 +96,10 @@ class CaseRecordController extends Controller
     {
         $this->authorize('approve', $caseRecord);
         $data = $request->validate(['decision' => ['required', 'in:approved,rejected'], 'rejection_reason' => ['nullable', 'required_if:decision,rejected', 'string', 'max:2000']]);
+        abort_unless($caseRecord->canTransitionTo($data['decision']), 422, 'This case record decision is not valid for its current status.');
         $caseRecord->update(['status' => $data['decision'], 'rejection_reason' => $data['decision'] === 'rejected' ? $data['rejection_reason'] : null]);
         $this->logStatusChange($caseRecord, $data['decision'], $data['rejection_reason'] ?? null);
+        $caseRecord->encoder?->notify(new WorkflowNotification('Case record decision recorded', "Case {$caseRecord->case_number} was {$data['decision']}.", route('case-records.show', $caseRecord)));
         return back()->with('success', 'Case record decision saved.');
     }
 

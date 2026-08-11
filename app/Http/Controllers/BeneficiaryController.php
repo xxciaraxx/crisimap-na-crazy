@@ -13,6 +13,8 @@ use App\Models\CaseRecord;
 use App\Jobs\GeocodeBeneficiary;
 use App\Services\BeneficiaryGeocoder;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Notifications\WorkflowNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -26,7 +28,7 @@ class BeneficiaryController extends Controller
     {
         $this->authorize('viewAny', Beneficiary::class);
         $query = $this->filteredQuery($request)
-            ->with(['barangay', 'assistanceType', 'caseRecord', 'encoder', 'overrideUser'])
+            ->with(['barangay', 'assistanceType', 'caseRecord', 'encoder', 'overrideUser', 'rejectedBy'])
             ->orderByDesc('date_of_assistance')
             ->orderByDesc('created_at');
 
@@ -59,7 +61,7 @@ class BeneficiaryController extends Controller
     public function show(Beneficiary $beneficiary)
     {
         $this->authorize('view', $beneficiary);
-        $beneficiary->load(['barangay', 'assistanceType', 'attachments.uploader', 'encoder', 'overrideUser']);
+        $beneficiary->load(['barangay', 'assistanceType', 'caseRecord', 'attachments.uploader', 'encoder', 'overrideUser', 'rejectedBy']);
 
         return view('beneficiaries.show', array_merge(
             compact('beneficiary'),
@@ -94,6 +96,47 @@ class BeneficiaryController extends Controller
         return redirect()->route('beneficiaries.index')->with('success', 'Beneficiary record deleted.');
     }
 
+    public function reject(Request $request, Beneficiary $beneficiary)
+    {
+        $this->authorize('reject', $beneficiary);
+        $data = $request->validate(['rejection_reason' => ['required', 'string', 'max:2000']]);
+
+        $beneficiary->update([
+            'status' => 'Rejected',
+            'rejection_reason' => $data['rejection_reason'],
+            'rejected_at' => now(),
+            'rejected_by' => $request->user()->id,
+        ]);
+        $this->logActivity('beneficiary_rejected', 'Rejected application '.$beneficiary->reference_code.': '.$data['rejection_reason'], $beneficiary);
+        ($beneficiary->caseRecord?->encoder ?? $beneficiary->encoder)?->notify(new WorkflowNotification('Application rejected', "Application {$beneficiary->reference_code} was rejected.", route('beneficiaries.show', $beneficiary)));
+
+        return back()->with('success', 'Application rejected and remarks recorded.');
+    }
+
+    public function applicationForm(Beneficiary $beneficiary)
+    {
+        $this->authorize('view', $beneficiary);
+        if (! in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden'], true)) {
+            return back()->with('error', 'Only eligible applications can be printed.');
+        }
+
+        $beneficiary->load(['barangay', 'assistanceType', 'caseRecord', 'encoder', 'overrideUser']);
+        return Pdf::loadView('beneficiaries.application-form', compact('beneficiary'))
+            ->download('application-form-'.$beneficiary->reference_code.'.pdf');
+    }
+
+    public function certificate(Beneficiary $beneficiary)
+    {
+        $this->authorize('view', $beneficiary);
+        if (! in_array($beneficiary->status, ['Approved', 'Released', 'Completed'], true)) {
+            return back()->with('error', 'A certificate is available only after approval.');
+        }
+
+        $beneficiary->load(['barangay', 'assistanceType', 'encoder']);
+        return Pdf::loadView('beneficiaries.certificate', compact('beneficiary'))
+            ->download('certificate-of-eligibility-'.$beneficiary->reference_code.'.pdf');
+    }
+
     public function verify(string $referenceCode)
     {
         $beneficiary = Beneficiary::query()
@@ -123,7 +166,7 @@ class BeneficiaryController extends Controller
             $duplicateQuery->where('id', '!=', $request->integer('exclude_id'));
         }
 
-        $latest = (clone $duplicateQuery)
+        $latest = (clone $duplicateQuery)->whereIn('status', ['Approved', 'Released', 'Completed'])->whereNotNull('date_of_assistance')
             ->orderByDesc('date_of_assistance')
             ->orderByDesc('created_at')
             ->first();
@@ -202,12 +245,18 @@ class BeneficiaryController extends Controller
         $payload['date_of_assistance'] = $payload['date_of_assistance'] ?? now()->toDateString();
 
         if ($beneficiary) {
+            if (! $beneficiary->canTransitionTo($payload['status'])) {
+                throw ValidationException::withMessages(['status' => 'This status change is not valid for the current application state.']);
+            }
             $beneficiary->fill($payload);
             $beneficiary->save();
             $message = 'Beneficiary record updated.';
             $action = 'updated';
             $description = 'Updated beneficiary record for '.$beneficiary->name;
         } else {
+            if ($payload['status'] !== 'Pending') {
+                throw ValidationException::withMessages(['status' => 'New applications must begin in Pending status.']);
+            }
             $beneficiary = Beneficiary::create($payload);
             $message = 'Beneficiary record created.';
             $action = 'created';
@@ -215,6 +264,9 @@ class BeneficiaryController extends Controller
         }
 
         $this->syncStatusTimestamps($beneficiary);
+        if ($beneficiary->status === 'Approved' && $beneficiary->wasChanged('status')) {
+            ($beneficiary->caseRecord?->encoder ?? $beneficiary->encoder)?->notify(new WorkflowNotification('Application approved', "Application {$beneficiary->reference_code} was approved.", route('beneficiaries.show', $beneficiary)));
+        }
         if (! $manualLocation && filled($beneficiary->address) && $beneficiary->geocode_precision !== 'manual') {
             GeocodeBeneficiary::dispatch($beneficiary->id)->delay(now()->addSecond());
         }
@@ -264,7 +316,7 @@ class BeneficiaryController extends Controller
             $historyQuery->where('id', '!=', $ignore->id);
         }
 
-        $latest = (clone $historyQuery)
+        $latest = (clone $historyQuery)->whereIn('status', ['Approved', 'Released', 'Completed'])->whereNotNull('date_of_assistance')
             ->orderByDesc('date_of_assistance')
             ->orderByDesc('created_at')
             ->first();

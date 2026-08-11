@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
+use App\Support\DateRangeResolver;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -124,11 +125,14 @@ class ReportController extends Controller
                     ->orWhere('address', 'like', '%'.$search.'%');
             });
         }
-        if ($request->filled('from')) {
-            $query->whereDate('date_of_assistance', '>=', $request->date('from'));
+        [$from, $to] = $request->filled('from') || $request->filled('to')
+            ? [$request->date('from'), $request->date('to')]
+            : (DateRangeResolver::resolve($request->input('period')) ?? [null, null]);
+        if ($from) {
+            $query->whereDate('date_of_assistance', '>=', $from);
         }
-        if ($request->filled('to')) {
-            $query->whereDate('date_of_assistance', '<=', $request->date('to'));
+        if ($to) {
+            $query->whereDate('date_of_assistance', '<=', $to);
         }
 
         return $query;

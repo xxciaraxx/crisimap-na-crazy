@@ -9,5 +9,6 @@ return [
         ['label' => 'Reports', 'route' => 'reports.index', 'match' => 'reports.*', 'icon' => 'reports', 'group' => 'overview'],
         ['label' => 'Settings', 'route' => 'settings.index', 'match' => 'settings.*', 'icon' => 'settings', 'group' => 'administration', 'roles' => ['super_admin']],
         ['label' => 'User Management', 'route' => 'users.index', 'match' => 'users.*', 'icon' => 'users', 'group' => 'administration', 'roles' => ['super_admin']],
+        ['label' => 'Activity Log', 'route' => 'activity-logs.index', 'match' => 'activity-logs.*', 'icon' => 'records', 'group' => 'administration', 'roles' => ['admin', 'super_admin']],
     ],
 ];
