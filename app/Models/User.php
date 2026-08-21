@@ -2,13 +2,11 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
@@ -27,6 +25,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'username',
         'must_complete_setup',
         'credentials_updated_at',
+        'rejection_reason',
     ];
 
     /**
@@ -60,6 +59,39 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isApproved(): bool
     {
         return $this->status === 'approved';
+    }
+
+    public static function roleSlotAvailable(string $role, ?int $excludingUserId = null): bool
+    {
+        if (! in_array($role, ['admin', 'focal_person'], true)) {
+            return true;
+        }
+
+        return ! static::query()
+            ->where('role', $role)
+            ->where('status', 'approved')
+            ->when($excludingUserId, fn ($query) => $query->whereKeyNot($excludingUserId))
+            ->exists();
+    }
+
+    /** @return array<int, string> */
+    public static function availableLeadershipRoles(): array
+    {
+        return array_values(array_filter(
+            ['admin', 'focal_person'],
+            fn (string $role) => static::roleSlotAvailable($role),
+        ));
+    }
+
+    public static function roleLabel(string $role): string
+    {
+        return match ($role) {
+            'admin' => 'MSWDO Head',
+            'focal_person' => 'Focal Person',
+            'social_officer' => 'Social Worker Officer',
+            'super_admin' => 'System Administrator',
+            default => str($role)->replace('_', ' ')->title()->toString(),
+        };
     }
 
     /**

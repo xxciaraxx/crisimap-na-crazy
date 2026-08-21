@@ -3,12 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Models\Beneficiary;
+use App\Models\ActivityLog;
+use App\Models\AssistanceType;
+use App\Models\Barangay;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     public function index()
     {
+        if (auth()->user()->role === 'super_admin') {
+            return $this->superAdminDashboard();
+        }
+
         $recentBeneficiaries = Beneficiary::query()
             ->active()
             ->with(['barangay', 'assistanceType', 'encoder'])
@@ -84,9 +93,13 @@ class DashboardController extends Controller
             ->limit(8)
             ->get();
 
+        $monthExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(strftime('%m', date_of_assistance) AS INTEGER)"
+            : 'MONTH(date_of_assistance)';
+
         $seasonalDemand = Beneficiary::query()
             ->active()
-            ->selectRaw('MONTH(date_of_assistance) as month_number, COUNT(*) as total')
+            ->selectRaw($monthExpression.' as month_number, COUNT(*) as total')
             ->whereNotNull('date_of_assistance')
             ->groupBy('month_number')
             ->orderBy('month_number')
@@ -131,6 +144,56 @@ class DashboardController extends Controller
             'growthTrend',
             'forecast',
             'insights'
+        ));
+    }
+
+    private function superAdminDashboard()
+    {
+        $pendingApprovals = User::query()
+            ->where('status', 'pending')
+            ->orderBy('created_at')
+            ->get(['id', 'name', 'email', 'role', 'created_at']);
+
+        $roleRoster = [
+            'admin' => User::query()->where('role', 'admin')->where('status', 'approved')->first(['id', 'name', 'email']),
+            'focal_person' => User::query()->where('role', 'focal_person')->where('status', 'approved')->first(['id', 'name', 'email']),
+            'social_officer_count' => User::query()->where('role', 'social_officer')->where('status', 'approved')->count(),
+        ];
+
+        $failedLoginsToday = ActivityLog::query()
+            ->where('action', 'login_failed')
+            ->whereDate('created_at', today())
+            ->count();
+
+        $incompleteOnboarding = User::query()
+            ->where('status', 'approved')
+            ->where(fn ($query) => $query->where('must_complete_setup', true)->orWhereNull('email_verified_at'))
+            ->count();
+
+        $recentActivity = ActivityLog::query()
+            ->with('user:id,name')
+            ->latest()
+            ->limit(8)
+            ->get(['id', 'user_id', 'action', 'description', 'created_at']);
+
+        $referenceData = [
+            'barangays' => Barangay::count(),
+            'assistance_types' => AssistanceType::count(),
+        ];
+
+        $geocodingHealth = [
+            'unresolved' => Beneficiary::query()->whereNull('geocode_precision')->count(),
+            'failed' => Beneficiary::query()->where('geocode_precision', 'failed')->count(),
+        ];
+
+        return view('dashboard.super-admin', compact(
+            'pendingApprovals',
+            'roleRoster',
+            'failedLoginsToday',
+            'incompleteOnboarding',
+            'recentActivity',
+            'referenceData',
+            'geocodingHealth'
         ));
     }
 

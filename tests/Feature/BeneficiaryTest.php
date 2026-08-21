@@ -15,7 +15,7 @@ class BeneficiaryTest extends TestCase
     public function test_authenticated_user_can_create_beneficiary(): void
     {
         $user = User::factory()->create([
-            'role' => 'social_welfare_officer',
+            'role' => 'focal_person',
         ]);
 
         $this->actingAs($user);
@@ -36,7 +36,7 @@ class BeneficiaryTest extends TestCase
     public function test_duplicate_check_flags_matching_beneficiary(): void
     {
         $user = User::factory()->create([
-            'role' => 'social_welfare_officer',
+            'role' => 'focal_person',
         ]);
 
         $this->actingAs($user);
@@ -61,7 +61,7 @@ class BeneficiaryTest extends TestCase
     public function test_supervisor_can_override_ineligible_application(): void
     {
         $supervisor = User::factory()->create([
-            'role' => 'mswdo_head',
+            'role' => 'super_admin',
         ]);
 
         $this->actingAs($supervisor);

@@ -30,7 +30,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'identifier' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255'],
             'password' => ['required', 'string'],
         ];
     }
@@ -44,24 +44,23 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        $identifier = $this->string('identifier')->toString();
-        $user = User::where('email', $identifier)->orWhere('username', $identifier)->first();
+        $email = $this->string('email')->toString();
+        $user = User::where('email', $email)->first();
         if ($user && ! $user->isApproved()) {
             $message = $user->status === 'pending'
-                ? 'Your account is pending approval by the system administrator.'
-                : 'Your account request was not approved. Contact your system administrator.';
+                ? 'Your account is still awaiting System Administrator approval.'
+                : 'Your registration was not approved'.($user->rejection_reason ? ': '.$user->rejection_reason : '.');
 
-            throw ValidationException::withMessages(['identifier' => $message]);
+            throw ValidationException::withMessages(['email' => $message]);
         }
 
-        $credentials = filter_var($identifier, FILTER_VALIDATE_EMAIL) ? ['email' => $identifier] : ['username' => $identifier];
-        if (! Auth::attempt(array_merge($credentials, ['password' => $this->password, 'status' => 'approved']), $this->boolean('remember'))) {
+        if (! Auth::attempt(['email' => $email, 'password' => $this->password, 'status' => 'approved'], $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
             RateLimiter::hit($this->identifierThrottleKey(), 3600);
-            ActivityLog::create(['user_id' => $user?->id, 'action' => 'login_failed', 'description' => 'Failed sign-in attempt for '.$identifier.' from '.$this->ip(), 'subject_type' => User::class, 'subject_id' => $user?->id]);
+            ActivityLog::create(['user_id' => $user?->id, 'action' => 'login_failed', 'description' => 'Failed sign-in attempt for '.$email.' from '.$this->ip(), 'subject_type' => User::class, 'subject_id' => $user?->id]);
 
             throw ValidationException::withMessages([
-                'identifier' => trans('auth.failed'),
+                'email' => trans('auth.failed'),
             ]);
         }
 
@@ -85,7 +84,7 @@ class LoginRequest extends FormRequest
         $seconds = max(RateLimiter::availableIn($this->throttleKey()), RateLimiter::availableIn($this->identifierThrottleKey()));
 
         throw ValidationException::withMessages([
-            'identifier' => trans('auth.throttle', [
+            'email' => trans('auth.throttle', [
                 'seconds' => $seconds,
                 'minutes' => ceil($seconds / 60),
             ]),
@@ -97,11 +96,11 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('identifier')).'|'.$this->ip());
+        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
     }
 
     public function identifierThrottleKey(): string
     {
-        return 'login-identifier:'.Str::transliterate(Str::lower($this->string('identifier')));
+        return 'login-email:'.Str::transliterate(Str::lower($this->string('email')));
     }
 }

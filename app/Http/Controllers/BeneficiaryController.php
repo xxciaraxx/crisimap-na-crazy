@@ -10,9 +10,10 @@ use App\Models\Attachment;
 use App\Models\Barangay;
 use App\Models\Beneficiary;
 use App\Models\CaseRecord;
+use App\Models\User;
 use App\Jobs\GeocodeBeneficiary;
 use App\Services\BeneficiaryGeocoder;
-use Carbon\Carbon;
+use App\Services\BeneficiaryEligibilityChecker;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Notifications\WorkflowNotification;
 use Illuminate\Database\Eloquent\Builder;
@@ -33,11 +34,15 @@ class BeneficiaryController extends Controller
             ->orderByDesc('created_at');
 
         $beneficiaries = $query->paginate(20)->withQueryString();
+        $missingLocationCount = (clone $this->filteredQuery($request))
+            ->where(fn (Builder $query) => $query->whereNull('latitude')->orWhereNull('longitude'))
+            ->count();
 
         return view('beneficiaries.index', [
             'beneficiaries' => $beneficiaries,
             'barangays' => Barangay::orderBy('name')->get(),
             'assistanceTypes' => AssistanceType::orderBy('name')->get(),
+            'missingLocationCount' => $missingLocationCount,
         ]);
     }
 
@@ -84,6 +89,11 @@ class BeneficiaryController extends Controller
     public function update(UpdateBeneficiaryRequest $request, Beneficiary $beneficiary)
     {
         $this->authorize('update', $beneficiary);
+        if ($request->input('status') !== $beneficiary->status) {
+            throw ValidationException::withMessages([
+                'status' => 'Use the dedicated approval or release action to change an application status.',
+            ]);
+        }
         return $this->persist($request->validated(), $request, $beneficiary);
     }
 
@@ -96,21 +106,44 @@ class BeneficiaryController extends Controller
         return redirect()->route('beneficiaries.index')->with('success', 'Beneficiary record deleted.');
     }
 
-    public function reject(Request $request, Beneficiary $beneficiary)
+    public function decide(Request $request, Beneficiary $beneficiary)
     {
-        $this->authorize('reject', $beneficiary);
-        $data = $request->validate(['rejection_reason' => ['required', 'string', 'max:2000']]);
+        $this->authorize('decide', $beneficiary);
+        $data = $request->validate(['decision' => ['required', 'in:approved,rejected'], 'rejection_reason' => ['nullable', 'required_if:decision,rejected', 'string', 'max:2000']]);
 
-        $beneficiary->update([
-            'status' => 'Rejected',
-            'rejection_reason' => $data['rejection_reason'],
-            'rejected_at' => now(),
-            'rejected_by' => $request->user()->id,
-        ]);
-        $this->logActivity('beneficiary_rejected', 'Rejected application '.$beneficiary->reference_code.': '.$data['rejection_reason'], $beneficiary);
-        ($beneficiary->caseRecord?->encoder ?? $beneficiary->encoder)?->notify(new WorkflowNotification('Application rejected', "Application {$beneficiary->reference_code} was rejected.", route('beneficiaries.show', $beneficiary)));
+        if ($data['decision'] === 'rejected') {
+            $beneficiary->update(['status' => 'Rejected', 'rejection_reason' => $data['rejection_reason'], 'rejected_at' => now(), 'rejected_by' => $request->user()->id]);
+            $this->logActivity('rejected', 'MSWDO Head rejected application for '.$beneficiary->name.': '.$data['rejection_reason'], $beneficiary);
+            $beneficiary->encoder?->notify(new WorkflowNotification('Application rejected', "Application {$beneficiary->reference_code} rejected: {$data['rejection_reason']}", route('beneficiaries.show', $beneficiary)));
+            return back()->with('success', 'Application rejected.');
+        }
 
-        return back()->with('success', 'Application rejected and remarks recorded.');
+        $beneficiary->update(['status' => 'Approved', 'approved_at' => now(), 'approved_by' => $request->user()->id]);
+        $this->logActivity('approved', 'MSWDO Head approved application for '.$beneficiary->name, $beneficiary);
+        $beneficiary->encoder?->notify(new WorkflowNotification('Application approved', "Application {$beneficiary->reference_code} approved — release once billing clears.", route('beneficiaries.show', $beneficiary)));
+        return back()->with('success', 'Application approved. Focal person can release funds once billing clears.');
+    }
+
+    /**
+     * Decision URLs are state-changing POST endpoints. Gracefully recover if a
+     * stale bookmark or an old browser page requests one with GET.
+     */
+    public function decisionRedirect(Beneficiary $beneficiary)
+    {
+        $this->authorize('view', $beneficiary);
+
+        return redirect()->route('beneficiaries.show', $beneficiary)
+            ->with('error', 'Application decisions must be submitted using the approval controls.');
+    }
+
+    public function release(Request $request, Beneficiary $beneficiary)
+    {
+        $this->authorize('release', $beneficiary);
+        $beneficiary->update(['status' => 'Released', 'released_at' => now(), 'released_by' => $request->user()->id]);
+        if (blank($beneficiary->latitude)) GeocodeBeneficiary::dispatch($beneficiary->id);
+        User::query()->where('role', 'admin')->where('status', 'approved')->get()->each(fn (User $user) => $user->notify(new WorkflowNotification('Beneficiary released', "{$beneficiary->name} has been marked released and is now an active AICS beneficiary.", route('beneficiaries.show', $beneficiary))));
+        $this->logActivity('released', 'Marked as released for '.$beneficiary->name, $beneficiary);
+        return back()->with('success', $beneficiary->name.' is now an active AICS beneficiary and will appear on the map.');
     }
 
     public function applicationForm(Beneficiary $beneficiary)
@@ -128,8 +161,8 @@ class BeneficiaryController extends Controller
     public function certificate(Beneficiary $beneficiary)
     {
         $this->authorize('view', $beneficiary);
-        if (! in_array($beneficiary->status, ['Approved', 'Released', 'Completed'], true)) {
-            return back()->with('error', 'A certificate is available only after approval.');
+        if (! in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden'], true)) {
+            return back()->with('error', 'Only eligible applications can be printed.');
         }
 
         $beneficiary->load(['barangay', 'assistanceType', 'encoder']);
@@ -223,7 +256,10 @@ class BeneficiaryController extends Controller
             $payload['geocode_precision'] = 'manual';
             $payload['geocoded_at'] = now();
         } elseif (! $beneficiary || $beneficiary->geocode_precision !== 'manual') {
-            $fallback = app(BeneficiaryGeocoder::class)->centroidFor($payload['barangay_id'] ?? null);
+            $fallback = app(BeneficiaryGeocoder::class)->jitteredCentroidFor(
+                $payload['barangay_id'] ?? null,
+                ($beneficiary?->id ?? '').'|'.($payload['name'] ?? '').'|'.($payload['address'] ?? '')
+            );
             if ($fallback) {
                 $payload += $fallback;
                 $payload['geocode_precision'] = 'barangay_centroid';
@@ -310,41 +346,7 @@ class BeneficiaryController extends Controller
 
     private function eligibilityFor(Beneficiary $candidate, ?Beneficiary $ignore = null): array
     {
-        $historyQuery = Beneficiary::query()->where('history_key', $candidate->history_key);
-
-        if ($ignore) {
-            $historyQuery->where('id', '!=', $ignore->id);
-        }
-
-        $latest = (clone $historyQuery)->whereIn('status', ['Approved', 'Released', 'Completed'])->whereNotNull('date_of_assistance')
-            ->orderByDesc('date_of_assistance')
-            ->orderByDesc('created_at')
-            ->first();
-
-        $daysSince = null;
-        $nextEligibleAt = null;
-        $eligible = true;
-
-        if ($latest) {
-            $latestDate = $latest->date_of_assistance ?? $latest->created_at;
-            $daysSince = $latestDate ? $latestDate->diffInDays(now()) : null;
-
-            if ($latestDate) {
-                $nextEligibleAt = Carbon::parse($latestDate)->addDays(90);
-            }
-
-            if ($daysSince !== null && $daysSince < 90) {
-                $eligible = false;
-            }
-        }
-
-        return [
-            'eligible' => $eligible,
-            'duplicate_count' => $historyQuery->count(),
-            'days_since_last_assistance' => $daysSince,
-            'next_eligible_at' => $nextEligibleAt,
-            'latest' => $latest,
-        ];
+        return app(BeneficiaryEligibilityChecker::class)->for($candidate, $ignore);
     }
 
     private function historyPayload(Beneficiary $beneficiary): array

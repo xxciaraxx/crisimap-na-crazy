@@ -11,6 +11,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label class="block text-sm">Name</label><input name="name" class="w-full border rounded px-3 py-2" required></div>
                         <div><label class="block text-sm">Email</label><input type="email" name="email" class="w-full border rounded px-3 py-2" required></div>
+                        <div><label class="block text-sm">Username</label><input name="username" class="w-full border rounded px-3 py-2"></div>
                         <div><label class="block text-sm">Role</label><select name="role" class="w-full border rounded px-3 py-2">
                             <option value="social_officer">Social Officer</option>
                             <option value="focal_person">Focal Person</option>

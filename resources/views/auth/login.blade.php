@@ -70,7 +70,7 @@
             <div class="brand-glow" aria-hidden="true"></div>
             <div class="brand-content">
                 <div class="brand-marks reveal reveal-logo">
-                    <div class="lgu-seal" aria-label="Municipality of Tagudin, Ilocos Sur"><span>1916</span><strong>TAGUDIN</strong><span>ILOCOS SUR</span></div><span class="logo-divider" aria-hidden="true"></span>
+                    <img class="lgu-seal" src="{{ asset('images/tagudin-logo.png') }}" alt="Municipality of Tagudin, Ilocos Sur logo"><span class="logo-divider" aria-hidden="true"></span>
                     <div class="crisimap-mark"><span class="map-pin">●</span><span><b>CRISI</b><b>MAP</b><small>AICS BENEFICIARY SYSTEM</small></span></div>
                 </div>
                 <div class="reveal reveal-title">
@@ -83,7 +83,6 @@
                     <div class="feature"><span>♟</span><p>Beneficiary<br>Management</p><small>Organized and accountable records.</small></div><div class="feature feature-location"><span>●</span><p>GIS Mapping &amp;<br>Visualization</p><small>Location-informed service delivery.</small></div><div class="feature feature-report"><span>▤</span><p>Analytics &amp;<br>Reports</p><small>Clear, actionable program insights.</small></div><div class="feature feature-shield"><span>⌾</span><p>Secure &amp;<br>Reliable</p><small>Protected staff access and audit trails.</small></div>
                 </div>
             </div>
-            <footer class="brand-footer reveal reveal-footer"><span class="footer-shield">✓</span><span>Empowering MSWDO Tagudin through technology<br>for better service and data-driven decision making.</span></footer>
         </section>
 
         <section class="form-panel" aria-labelledby="signin-title">
@@ -94,11 +93,11 @@
                 <aside class="security-note"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.75 20.25 6.5v4.78c0 4.76-3.15 8.84-8.25 10.97-5.1-2.13-8.25-6.21-8.25-10.97V6.5L12 3.75Z"/><path d="m9.5 12.1 1.9 1.9 3.6-3.6"/></svg></span><p><strong>Protected system access</strong><br>Activities are monitored and logged for authorized MSWDO Tagudin personnel.</p></aside>
                 <form method="POST" action="{{ route('login') }}" id="loginForm" novalidate>
                     @csrf
-                    <div class="input-group @error('identifier') has-error @enderror">
-                        <label for="identifier">Username or email</label>
+                    <div class="input-group @error('email') has-error @enderror">
+                        <label for="email">Email address</label>
                         <span class="input-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"/><path d="M4.5 20.25a7.5 7.5 0 0 1 15 0"/></svg></span>
-                        <input id="identifier" name="identifier" type="text" value="{{ old('identifier') }}" required autofocus autocomplete="username" placeholder="Username or email" aria-describedby="identifier-error">
-                        @error('identifier')<p class="field-error" id="identifier-error">{{ $message }}</p>@enderror
+                        <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="Email address" aria-describedby="email-error">
+                        @error('email')<p class="field-error" id="email-error">{{ $message }}</p>@enderror
                     </div>
                     <div class="input-group @error('password') has-error @enderror">
                         <label for="password">Password</label>

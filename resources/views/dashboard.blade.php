@@ -1,18 +1,23 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">Decision Support Dashboard</h2>
-    </x-slot>
+    <div class="dashboard-page">
+        <div class="dashboard-container">
+            <section class="dashboard-intro" aria-labelledby="dashboard-heading">
+                <div>
+                    <p class="dashboard-eyebrow">AICS program overview</p>
+                    <h1 id="dashboard-heading">Decision support dashboard</h1>
+                    <p>Monitor assistance activity, coverage, and release progress in one place.</p>
+                </div>
+                <div class="dashboard-period">Updated {{ now()->format('M d, Y') }}</div>
+            </section>
 
-    <div class="py-6">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
-                <div class="rounded-xl bg-white p-5 shadow"><p class="text-sm text-gray-500">Total Beneficiaries</p><p class="mt-2 text-3xl font-semibold">{{ number_format($totalBeneficiaries) }}</p></div>
-                <div class="rounded-xl bg-white p-5 shadow"><p class="text-sm text-gray-500">This Month</p><p class="mt-2 text-3xl font-semibold">{{ number_format($thisMonth) }}</p></div>
-                <div class="rounded-xl bg-white p-5 shadow"><p class="text-sm text-gray-500">Released</p><p class="mt-2 text-3xl font-semibold">{{ number_format($released) }}</p></div>
-                <div class="rounded-xl bg-white p-5 shadow"><p class="text-sm text-gray-500">Approved</p><p class="mt-2 text-3xl font-semibold">{{ number_format($approved) }}</p></div>
-                <div class="rounded-xl bg-white p-5 shadow"><p class="text-sm text-gray-500">Average Amount</p><p class="mt-2 text-3xl font-semibold">PHP {{ number_format($averageAmount, 2) }}</p></div>
-                <div class="rounded-xl bg-white p-5 shadow"><p class="text-sm text-gray-500">Release Rate</p><p class="mt-2 text-3xl font-semibold">{{ $releaseRate }}%</p></div>
-            </div>
+            <section class="dashboard-metrics" aria-label="Program summary">
+                <article class="dashboard-metric dashboard-metric-primary"><p>Total beneficiaries</p><strong>{{ number_format($totalBeneficiaries) }}</strong><span>Active assistance records</span></article>
+                <article class="dashboard-metric"><p>This month</p><strong>{{ number_format($thisMonth) }}</strong><span>New assistance records</span></article>
+                <article class="dashboard-metric"><p>Released</p><strong>{{ number_format($released) }}</strong><span>Completed assistance</span></article>
+                <article class="dashboard-metric"><p>Approved</p><strong>{{ number_format($approved) }}</strong><span>Awaiting release</span></article>
+                <article class="dashboard-metric dashboard-metric-amount"><p>Average assistance</p><strong>&#8369;{{ number_format($averageAmount, 2) }}</strong><span>Per active record</span></article>
+                <article class="dashboard-metric"><p>Release rate</p><strong>{{ $releaseRate }}%</strong><span>Of active records</span></article>
+            </section>
 
             <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                 <div class="xl:col-span-2 space-y-6">

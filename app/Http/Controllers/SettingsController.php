@@ -7,6 +7,7 @@ use App\Http\Requests\StoreBarangayRequest;
 use App\Models\ActivityLog;
 use App\Models\AssistanceType;
 use App\Models\Barangay;
+use App\Models\OfficialSetting;
 use Illuminate\Http\Request;
 
 class SettingsController extends Controller
@@ -16,7 +17,18 @@ class SettingsController extends Controller
         return view('settings.index', [
             'barangays' => Barangay::orderBy('name')->get(),
             'assistanceTypes' => AssistanceType::orderBy('name')->get(),
+            'officialSettings' => OfficialSetting::values(),
         ]);
+    }
+
+    public function updateOfficialSettings(Request $request)
+    {
+        $data = $request->validate(['settings' => ['required', 'array'], 'settings.*' => ['nullable', 'string', 'max:2000']]);
+        foreach ($data['settings'] as $key => $value) {
+            OfficialSetting::updateOrCreate(['key' => $key], ['value' => $value]);
+        }
+        ActivityLog::create(['user_id' => auth()->id(), 'action' => 'updated', 'description' => 'Updated official document settings', 'subject_type' => OfficialSetting::class, 'subject_id' => null]);
+        return back()->with('success', 'Official document settings updated. Finalized snapshots remain unchanged.');
     }
 
     public function storeBarangay(StoreBarangayRequest $request)

@@ -23,7 +23,7 @@
                 <nav class="app-nav-links" aria-label="{{ $groupLabel }}">
                     @foreach ($items as $item)
                         @php($active = request()->routeIs($item['match'] ?? $item['route']))
-                        <a href="{{ route($item['route']) }}" @click="open = false" class="{{ $active ? 'is-active' : '' }}" :data-tooltip="collapsed ? '{{ $item['label'] }}' : null">
+                        <a href="{{ route($item['route'], $item['parameters'] ?? []) }}" @click="open = false" class="{{ $active ? 'is-active' : '' }}" :data-tooltip="collapsed ? '{{ $item['label'] }}' : null">
                             <span class="app-nav-icon" aria-hidden="true">
                                 @switch($item['icon'])
                                     @case('home') <svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10H3zM9 20v-6h6v6"/></svg> @break
@@ -34,7 +34,7 @@
                                     @case('settings') <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20.3h-3v-.08A1.7 1.7 0 0 0 10.68 18.7a1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7.02 15 1.7 1.7 0 0 0 5.46 14H5.4v-3h.06A1.7 1.7 0 0 0 7.02 10a1.7 1.7 0 0 0-.34-1.88l-.06-.06L8.74 5.94l.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1.03-1.56V4.7h3v.08A1.7 1.7 0 0 0 15.74 6.3a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.12 2.12-.06.06A1.7 1.7 0 0 0 19.4 10c.12.57.62.98 1.2 1h.06v3h-.06c-.58.02-1.08.43-1.2 1Z"/></svg> @break
                                     @default <svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM5 21a7 7 0 0 1 14 0"/></svg>
                                 @endswitch
-                            </span><span class="app-sidebar-copy">{{ $item['label'] }}</span>
+                            </span><span class="app-sidebar-copy">{{ $item['label'] }}</span>@if(!empty($item['badge']) && ($navigationBadges[$item['badge']] ?? 0))<span class="app-notification-badge">{{ $navigationBadges[$item['badge']] }}</span>@endif
                         </a>
                     @endforeach
                 </nav>
@@ -43,7 +43,7 @@
     @endforeach
 
     <div class="app-sidebar-footer"><p class="app-nav-label app-sidebar-copy">Account</p><div class="app-profile-wrap">
-        <button @click="sidebarProfileOpen = !sidebarProfileOpen; notificationsOpen = false; topProfileOpen = false" class="app-account-details" :data-tooltip="collapsed ? '{{ $user->name }}' : null" :aria-expanded="sidebarProfileOpen.toString()"><span class="app-account-avatar">{{ strtoupper(substr($user->name, 0, 1)) }}</span><span class="app-sidebar-copy"><strong>{{ $user->name }}</strong><small>{{ ucwords(str_replace('_', ' ', $user->role)) }}</small></span><span class="app-profile-chevron app-sidebar-copy" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></span></button>
+        <button @click="sidebarProfileOpen = !sidebarProfileOpen; notificationsOpen = false; topProfileOpen = false" class="app-account-details" :data-tooltip="collapsed ? '{{ $user->name }}' : null" :aria-expanded="sidebarProfileOpen.toString()"><span class="app-account-avatar">{{ strtoupper(substr($user->name, 0, 1)) }}</span><span class="app-sidebar-copy"><strong>{{ $user->name }}</strong><small>{{ \App\Models\User::roleLabel($user->role) }}</small></span><span class="app-profile-chevron app-sidebar-copy" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></span></button>
         <div x-cloak x-show="sidebarProfileOpen" x-transition.origin.bottom.left @click.outside="sidebarProfileOpen = false" class="app-dropdown app-profile-dropdown"><a href="{{ route('profile.edit') }}">Profile</a>@if ($navigation->contains('route', 'settings.index')) <a href="{{ route('settings.index') }}">Settings</a> @endif<form method="POST" action="{{ route('logout') }}">@csrf<button type="submit">Log out</button></form></div>
     </div></div>
 </aside>

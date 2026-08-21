@@ -34,6 +34,31 @@
             align-items:center;
             justify-content:center;
         }
+        #registrationPage .approval-notice{
+            display:flex;
+            gap:.7rem;
+            align-items:flex-start;
+            margin:1rem 0 .2rem;
+            padding:.75rem .9rem;
+            border:1px solid #bfdbfe;
+            border-radius:10px;
+            background:#eff6ff;
+            color:#315273;
+            font-size:.78rem;
+            line-height:1.4;
+        }
+        #registrationPage .approval-notice svg{
+            width:1.1rem;
+            height:1.1rem;
+            flex:0 0 1.1rem;
+            margin-top:.04rem;
+            stroke:#1565c0;
+            fill:none;
+            stroke-width:2;
+            stroke-linecap:round;
+            stroke-linejoin:round;
+        }
+        #registrationPage .approval-notice strong{color:#104f9e}
         #registrationPage .feature{
             transition:background 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
         }
@@ -127,11 +152,29 @@
 
         /* Clearer keyboard focus rings across the form, without changing the palette */
         .input-group input:focus-visible,
+        .input-group select:focus-visible,
         .password-toggle:focus-visible,
         .sign-in:focus-visible,
         .auth-switch-button:focus-visible{
             outline:3px solid #1565c055;
             outline-offset:2px;
+        }
+        #registrationPage .role-group select{
+            display:block;
+            width:100% !important;
+            height:54px !important;
+            padding:0 .9rem 0 3.8rem !important;
+            border:1px solid #cbd5e1;
+            border-radius:10px;
+            background:#fff;
+            color:#182235;
+            font:600 .95rem/1.2 Figtree, sans-serif;
+            cursor:pointer;
+        }
+        #registrationPage .role-group select:invalid{color:#718198}
+        #registrationPage .role-group:focus-within select{
+            border-color:#1565c0;
+            box-shadow:0 0 0 4px #1565c014,0 8px 18px #073d8214;
         }
     </style>
 </head>
@@ -142,7 +185,7 @@
             <div class="brand-glow" aria-hidden="true"></div>
             <div class="brand-content">
                 <div class="brand-marks reveal reveal-logo">
-                    <div class="lgu-seal" aria-label="Municipality of Tagudin, Ilocos Sur"><span>1916</span><strong>TAGUDIN</strong><span>ILOCOS SUR</span></div><span class="logo-divider" aria-hidden="true"></span>
+                    <img class="lgu-seal" src="{{ asset('images/tagudin-logo.png') }}" alt="Municipality of Tagudin, Ilocos Sur logo"><span class="logo-divider" aria-hidden="true"></span>
                     <div class="crisimap-mark"><span class="map-pin">●</span><span><b>CRISI</b><b>MAP</b><small>AICS BENEFICIARY SYSTEM</small></span></div>
                 </div>
                 <div class="reveal reveal-title">
@@ -158,7 +201,6 @@
                     <div class="feature feature-shield"><span>⌾</span><p>Secure &amp;<br>Reliable</p><small>Protected staff access and audit trails.</small></div>
                 </div>
             </div>
-            <footer class="brand-footer reveal reveal-footer"><span class="footer-shield">✓</span><span>Empowering MSWDO Tagudin through technology<br>for better service and data-driven decision making.</span></footer>
         </section>
 
         <section class="form-panel" aria-labelledby="signup-title">
@@ -178,6 +220,22 @@
                         <input id="email" name="email" type="email" value="{{ old('email') }}" required autocomplete="username" placeholder="Email address" aria-describedby="email-error">
                         @error('email')<p class="field-error" id="email-error">{{ $message }}</p>@enderror
                     </div>
+                    @if ($availableLeadershipRoles)
+                        <div class="input-group role-group @error('role') has-error @enderror">
+                            <span class="input-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="3.75" width="16" height="16.5" rx="2"/><path d="M8 8.25h8M8 12h2.25M8 15.75h5.5"/></svg></span>
+                            <select id="role" name="role" required aria-label="Position" aria-describedby="role-error">
+                                <option value="" disabled @selected(! old('role'))>Choose a position</option>
+                                @if (in_array('admin', $availableLeadershipRoles, true))
+                                    <option value="admin" @selected(old('role') === 'admin')>MSWDO Head</option>
+                                @endif
+                                @if (in_array('focal_person', $availableLeadershipRoles, true))
+                                    <option value="focal_person" @selected(old('role') === 'focal_person')>Focal Person</option>
+                                @endif
+                                <option value="social_officer" @selected(old('role') === 'social_officer')>Social Worker Officer</option>
+                            </select>
+                            @error('role')<p class="field-error" id="role-error">{{ $message }}</p>@enderror
+                        </div>
+                    @endif
                     <div class="input-group @error('password') has-error @enderror">
                         <label for="password">Password</label><span class="input-icon lock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16.5 10.5V7.875a4.5 4.5 0 1 0-9 0V10.5"/><path d="M6.75 10.5h10.5a1.5 1.5 0 0 1 1.5 1.5v6.75a1.5 1.5 0 0 1-1.5 1.5H6.75a1.5 1.5 0 0 1-1.5-1.5V12a1.5 1.5 0 0 1 1.5-1.5Z"/></svg></span>
                         <input id="password" name="password" type="password" required minlength="8"
@@ -207,6 +265,10 @@
                         @error('password_confirmation')<p class="field-error" id="password-confirmation-error">{{ $message }}</p>@enderror
                         <p class="field-error" id="password-confirmation-mismatch" style="display:none" aria-live="assertive">Passwords do not match.</p>
                     </div>
+                    <aside class="approval-notice" role="note">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.25"/><path d="M12 10.5v5M12 7.75h.01"/></svg>
+                        <span><strong>Approval required.</strong> After you create your account, please wait for a System Administrator to review and approve your access.</span>
+                    </aside>
                     <button class="sign-in registration-submit" id="registerButton" type="submit"><span class="button-text">Create account</span><span class="button-arrow" aria-hidden="true">→</span><span class="spinner" aria-hidden="true"></span></button>
                 </form>
                 <div class="account-switch"><p>Already have an account?</p><a class="auth-switch-button" href="{{ route('login') }}"><span aria-hidden="true">→</span>Back to sign in</a></div>

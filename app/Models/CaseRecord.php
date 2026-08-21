@@ -11,10 +11,15 @@ class CaseRecord extends Model
 
     protected $fillable = [
         'case_number', 'date_of_entry', 'client_name', 'barangay_id', 'problem_presented',
-        'house_structure', 'water_source', 'electricity', 'client_signature_path', 'encoded_by', 'status', 'rejection_reason',
+        'house_structure', 'water_source', 'electricity', 'is_government_program_member', 'government_programs', 'other_government_program',
+        'general_intake_sheet_id', 'client_signature_path', 'encoded_by', 'status', 'rejection_reason',
     ];
 
-    protected $casts = ['date_of_entry' => 'date'];
+    protected $casts = [
+        'date_of_entry' => 'date',
+        'is_government_program_member' => 'boolean',
+        'government_programs' => 'array',
+    ];
 
     protected static function booted(): void
     {
@@ -38,6 +43,8 @@ class CaseRecord extends Model
     public function encoder() { return $this->belongsTo(User::class, 'encoded_by'); }
     public function householdMembers() { return $this->hasMany(HouseholdMember::class); }
     public function beneficiaries() { return $this->hasMany(Beneficiary::class); }
+    public function intake() { return $this->belongsTo(GeneralIntakeSheet::class, 'general_intake_sheet_id'); }
+    public function documents() { return $this->hasMany(DocumentRecord::class); }
 
     public function canTransitionTo(string $status): bool
     {
@@ -46,8 +53,7 @@ class CaseRecord extends Model
         }
 
         return in_array($status, [
-            'submitted' => ['under_review'],
-            'under_review' => ['approved', 'rejected'],
+            'submitted' => ['approved', 'rejected'],
             'approved' => [],
             'rejected' => [],
         ][$this->status] ?? [], true);

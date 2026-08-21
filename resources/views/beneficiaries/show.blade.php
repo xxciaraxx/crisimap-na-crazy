@@ -6,17 +6,17 @@
                 <p class="text-sm text-gray-500">Reference: {{ $beneficiary->reference_code ?? 'Pending generation' }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="bg-blue-600 text-white px-4 py-2 rounded">Edit</a>
+                @can('update', $beneficiary)<a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="bg-blue-600 text-white px-4 py-2 rounded">Edit</a>@endcan
                 @if(in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden']))<a target="_blank" href="{{ route('beneficiaries.application-form', $beneficiary) }}" class="bg-gray-700 text-white px-4 py-2 rounded">Print Application Form</a>@endif
-                @if(in_array($beneficiary->status, ['Approved', 'Released', 'Completed']))<a target="_blank" href="{{ route('beneficiaries.certificate', $beneficiary) }}" class="bg-green-700 text-white px-4 py-2 rounded">Print Certificate of Eligibility</a>@endif
+                @if(in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden']))<a target="_blank" href="{{ route('beneficiaries.certificate', $beneficiary) }}" class="bg-green-700 text-white px-4 py-2 rounded">Print Certificate of Eligibility</a>@endif
                 @if($beneficiary->reference_code)
-                    <a href="{{ route('beneficiaries.verify', $beneficiary->reference_code) }}" class="bg-gray-800 text-white px-4 py-2 rounded">Verify QR</a>
+                    <a href="{{ route('beneficiaries.verify', $beneficiary->reference_code) }}" class="bg-gray-800 text-white px-4 py-2 rounded">View Record Verification</a>
                 @endif
-                <form action="{{ route('beneficiaries.destroy', $beneficiary) }}" method="POST" class="inline">
+                @can('delete', $beneficiary)<form action="{{ route('beneficiaries.destroy', $beneficiary) }}" method="POST" class="inline">
                     @csrf
                     @method('DELETE')
                     <button class="bg-red-600 text-white px-4 py-2 rounded">Delete</button>
-                </form>
+                </form>@endcan
             </div>
         </div>
     </x-slot>
@@ -66,20 +66,8 @@
                             @endforelse
                         </div>
                     </div>
-                    <div class="mt-6">
-                        <p class="text-sm text-gray-500 mb-2">QR Verification</p>
-                        @if($beneficiary->reference_code)
-                            <img
-                                alt="QR code"
-                                class="border rounded-lg p-2"
-                                src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={{ urlencode(route('beneficiaries.verify', $beneficiary->reference_code)) }}"
-                            >
-                            <p class="mt-2 text-xs text-gray-500 break-all">{{ route('beneficiaries.verify', $beneficiary->reference_code) }}</p>
-                        @else
-                            <p class="text-sm text-gray-500">QR code will be available once the record is saved.</p>
-                        @endif
-                    </div>
-                    @can('reject', $beneficiary)<div class="mt-6 border-t pt-4"><button type="button" @click="$dispatch('open-modal', 'reject-application')" class="rounded bg-red-600 px-4 py-2 text-white">Reject Application</button><x-modal name="reject-application" focusable><form action="{{ route('beneficiaries.reject', $beneficiary) }}" method="POST" class="p-6">@csrf<h3 class="text-lg font-semibold text-gray-900">Reject this application?</h3><p class="mt-2 text-sm text-gray-600">This decision is recorded in the audit trail and cannot be reversed.</p><label class="mt-4 block text-sm font-medium text-gray-700">Reason for rejection</label><textarea required maxlength="2000" name="rejection_reason" class="mt-2 w-full rounded border-gray-300" placeholder="State the reason for rejection"></textarea><div class="mt-5 flex justify-end gap-3"><button type="button" @click="$dispatch('close')" class="rounded border px-4 py-2">Cancel</button><button class="rounded bg-red-600 px-4 py-2 text-white">Confirm Rejection</button></div></form></x-modal></div>@endcan
+                    @can('decide', $beneficiary)<div class="mt-6 border-t pt-4"><p class="mb-3 text-sm text-gray-600">MSWDO Head decision</p><div class="flex gap-2"><form action="{{ route('beneficiaries.decide', $beneficiary) }}" method="POST">@csrf<input type="hidden" name="decision" value="approved"><button class="rounded bg-green-700 px-4 py-2 text-white">Approve Application</button></form><button type="button" @click="$dispatch('open-modal', 'reject-application')" class="rounded bg-red-600 px-4 py-2 text-white">Reject Application</button></div><x-modal name="reject-application" focusable><form action="{{ route('beneficiaries.decide', $beneficiary) }}" method="POST" class="p-6">@csrf<input type="hidden" name="decision" value="rejected"><h3 class="text-lg font-semibold text-gray-900">Reject this application?</h3><label class="mt-4 block text-sm font-medium text-gray-700">Reason for rejection</label><textarea required maxlength="2000" name="rejection_reason" class="mt-2 w-full rounded border-gray-300"></textarea><div class="mt-5 flex justify-end gap-3"><button type="button" @click="$dispatch('close')" class="rounded border px-4 py-2">Cancel</button><button class="rounded bg-red-600 px-4 py-2 text-white">Confirm Rejection</button></div></form></x-modal></div>@endcan
+                    @can('release', $beneficiary)<div class="mt-6 border-t pt-4"><form action="{{ route('beneficiaries.release', $beneficiary) }}" method="POST">@csrf<button class="rounded bg-blue-700 px-4 py-2 text-white">Mark Funds Released</button></form></div>@endcan
                 </div>
 
                 <div class="bg-white shadow rounded-lg p-6">

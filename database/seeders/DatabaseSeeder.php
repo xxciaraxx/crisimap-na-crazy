@@ -13,7 +13,6 @@ class DatabaseSeeder extends Seeder
             BarangayCentroidSeeder::class,
             AssistanceTypeSeeder::class,
             UserSeeder::class,
-            BeneficiarySeeder::class,
         ]);
     }
 }

@@ -24,8 +24,9 @@ class StoreBeneficiaryRequest extends FormRequest
             'barangay_id' => ['nullable', 'exists:barangays,id'],
             'assistance_type_id' => ['nullable', 'exists:assistance_types,id'],
             'address' => ['nullable', 'string', 'max:255'],
-            'latitude' => ['nullable', 'numeric'],
-            'longitude' => ['nullable', 'numeric'],
+            // Keep manually pinned locations in Tagudin and its immediate vicinity.
+            'latitude' => ['nullable', 'numeric', 'between:16.75,17.15'],
+            'longitude' => ['nullable', 'numeric', 'between:120.20,120.65'],
             'case_info' => ['nullable', 'string'],
             'date_of_assistance' => ['nullable', 'date'],
             'status' => ['required', 'in:Pending,Approved,Released,Completed'],

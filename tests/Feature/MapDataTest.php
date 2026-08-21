@@ -28,7 +28,7 @@ class MapDataTest extends TestCase
                 'name' => $name, 'age' => 40, 'sex' => 'Female', 'barangay_id' => $barangay->id,
                 'assistance_type_id' => $type->id, 'case_record_id' => $case->id, 'address' => 'Confidential street address',
                 'case_info' => 'Sensitive medical narrative', 'latitude' => 16.9301, 'longitude' => 120.3604,
-                'date_of_assistance' => now(), 'encoded_by' => $officer->id,
+                'date_of_assistance' => now(), 'encoded_by' => $officer->id, 'status' => 'Released',
             ]);
         }
 

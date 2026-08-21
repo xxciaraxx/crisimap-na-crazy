@@ -82,6 +82,8 @@ class MapController extends Controller
         }
         if ($request->filled('status')) {
             $query->where('status', $request->string('status')->toString());
+        } elseif (! $historyView) {
+            $query->whereIn('status', ['Released', 'Completed']);
         }
         if ($request->filled('search')) {
             $search = trim($request->string('search')->toString());
@@ -99,6 +101,7 @@ class MapController extends Controller
             $query->whereDate('date_of_assistance', '<=', $to);
         }
 
+        $missingLocationCount = (clone $query)->where(fn ($query) => $query->whereNull('latitude')->orWhereNull('longitude'))->count();
         $beneficiaries = $query->whereNotNull('latitude')->whereNotNull('longitude')
             ->orderByDesc('date_of_assistance')->limit(5000)->get([
                 'id', 'name', 'reference_code', 'status', 'barangay_id', 'assistance_type_id', 'geocode_precision',
@@ -129,7 +132,7 @@ class MapController extends Controller
                     ],
                 ];
             })->values(),
-            'summary' => ['count' => $beneficiaries->count(), 'view' => $historyView ? 'history' : 'live'],
+            'summary' => ['count' => $beneficiaries->count(), 'missing_location_count' => $missingLocationCount, 'view' => $historyView ? 'history' : 'live'],
         ]);
     }
 

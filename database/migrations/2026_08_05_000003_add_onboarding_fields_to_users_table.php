@@ -10,8 +10,9 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->string('username')->nullable()->unique()->after('name');
-            $table->boolean('must_complete_setup')->default(true)->after('status');
+            $table->boolean('must_complete_setup')->default(false)->after('status');
             $table->timestamp('credentials_updated_at')->nullable()->after('last_login_at');
+            $table->text('rejection_reason')->nullable()->after('credentials_updated_at');
         });
     }
 
@@ -19,7 +20,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->dropUnique(['username']);
-            $table->dropColumn(['username', 'must_complete_setup', 'credentials_updated_at']);
+            $table->dropColumn(['username', 'must_complete_setup', 'credentials_updated_at', 'rejection_reason']);
         });
     }
 };

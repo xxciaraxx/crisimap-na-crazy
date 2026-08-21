@@ -25,6 +25,9 @@ class Beneficiary extends Model
         'longitude',
         'geocode_precision',
         'geocoded_at',
+        'geocode_attempted_at',
+        'geocode_failed_at',
+        'geocode_failure_reason',
         'case_info',
         'amount',
         'date_of_assistance',
@@ -37,7 +40,9 @@ class Beneficiary extends Model
         'override_justification',
         'override_at',
         'approved_at',
+        'approved_by',
         'released_at',
+        'released_by',
         'completed_at',
         'rejection_reason',
         'rejected_at',
@@ -59,6 +64,8 @@ class Beneficiary extends Model
         'latitude' => 'float',
         'longitude' => 'float',
         'geocoded_at' => 'datetime',
+        'geocode_attempted_at' => 'datetime',
+        'geocode_failed_at' => 'datetime',
         'amount' => 'decimal:2',
     ];
 
@@ -98,6 +105,10 @@ class Beneficiary extends Model
     {
         return $this->belongsTo(User::class, 'rejected_by');
     }
+
+    public function approvedBy() { return $this->belongsTo(User::class, 'approved_by'); }
+    public function releasedBy() { return $this->belongsTo(User::class, 'released_by'); }
+    public function documents() { return $this->hasMany(DocumentRecord::class); }
 
     public function attachments()
     {

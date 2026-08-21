@@ -11,6 +11,11 @@
 
     <div class="py-6">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-4">
+            @if($missingLocationCount > 0)
+                <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    {{ $missingLocationCount }} record(s) have no map location yet. They are queued for geocoding and can be retried with <code>php artisan crisimap:geocode-missing --retry-failed</code>.
+                </div>
+            @endif
             <div class="bg-white shadow overflow-hidden sm:rounded-lg p-4">
                 <form method="GET" class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
                     <input name="search" value="{{ request('search') }}" placeholder="Search name or code" class="border rounded px-3 py-2" />

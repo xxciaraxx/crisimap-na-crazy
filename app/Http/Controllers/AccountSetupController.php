@@ -19,13 +19,20 @@ class AccountSetupController extends Controller
         $user = $request->user();
         abort_unless($user->must_complete_setup, 404);
         $data = $request->validate([
-            'username' => ['required', 'string', 'alpha_dash', 'min:3', 'max:50', 'unique:users,username,'.$user->id],
+            'name' => ['required', 'string', 'min:3', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email,'.$user->id],
             'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
         ]);
-        $user->forceFill(['username' => $data['username'], 'email' => $data['email'], 'password' => $data['password'], 'must_complete_setup' => false, 'credentials_updated_at' => now(), 'email_verified_at' => null])->save();
+        $user->forceFill([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            // The email is the permanent sign-in identifier after this setup step.
+            'username' => $data['email'],
+            'password' => $data['password'],
+            'must_complete_setup' => false,
+            'credentials_updated_at' => now(),
+        ])->save();
         ActivityLog::create(['user_id' => $user->id, 'action' => 'account_setup_completed', 'description' => 'Completed required account setup.', 'subject_type' => get_class($user), 'subject_id' => $user->id]);
-        $user->sendEmailVerificationNotification();
-        return redirect()->route('verification.notice')->with('status', 'Account setup complete. Verify your email to continue.');
+        return redirect()->route('dashboard')->with('success', 'Account setup complete.');
     }
 }

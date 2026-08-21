@@ -29,6 +29,10 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
         $request->user()->forceFill(['last_login_at' => now()])->save();
 
+        if ($request->user()->must_complete_setup) {
+            return redirect()->route('account.setup.create');
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
