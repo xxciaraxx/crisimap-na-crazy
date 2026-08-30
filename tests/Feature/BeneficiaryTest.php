@@ -96,4 +96,46 @@ class BeneficiaryTest extends TestCase
             'override_by' => $supervisor->id,
         ]);
     }
+
+    public function test_pending_match_is_reported_without_claiming_a_released_match(): void
+    {
+        $user = User::factory()->create(['role' => 'focal_person']);
+        $this->actingAs($user);
+
+        Beneficiary::create([
+            'name' => 'Ana Reyes',
+            'age' => 30,
+            'sex' => 'Female',
+            'contact' => '09170000002',
+            'status' => 'Pending',
+        ]);
+
+        $this->getJson('/beneficiaries/duplicate-check?name=Ana+Reyes&age=30&contact=09170000002')
+            ->assertOk()
+            ->assertJsonPath('duplicate_count', 1)
+            ->assertJsonPath('potential_duplicate', null)
+            ->assertJsonPath('eligible', true);
+    }
+
+    public function test_an_ineligible_pending_application_cannot_be_approved(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Beneficiary::create([
+            'name' => 'Luis Cruz', 'age' => 51, 'sex' => 'Male', 'contact' => '09170000003',
+            'status' => 'Released', 'date_of_assistance' => now()->subDays(10),
+        ]);
+        $application = Beneficiary::create([
+            'name' => 'Luis Cruz', 'age' => 51, 'sex' => 'Male', 'contact' => '09170000003',
+            'status' => 'Pending', 'eligibility_status' => 'Eligible',
+        ]);
+
+        $this->actingAs($admin)->post(route('beneficiaries.decide', $application), ['decision' => 'approved'])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('beneficiaries', [
+            'id' => $application->id,
+            'status' => 'Pending',
+            'eligibility_status' => 'Ineligible',
+        ]);
+    }
 }

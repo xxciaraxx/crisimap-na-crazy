@@ -9,8 +9,52 @@ class GeneralIntakeSheet extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['intake_number', 'intake_date', 'program', 'client_type', 'client_name', 'beneficiary_name', 'age', 'sex', 'civil_status', 'occupation', 'monthly_income', 'contact', 'barangay_id', 'address', 'purpose_of_assistance', 'requested_amount', 'diagnosis_or_cause_of_death', 'client_sectors', 'income_resources', 'monthly_expenses', 'supporting_documents', 'social_worker_assessment', 'applicant_signature_path', 'interviewer_name', 'interviewer_position', 'encoded_by', 'status'];
-    protected $casts = ['intake_date' => 'date', 'client_sectors' => 'array', 'income_resources' => 'array', 'supporting_documents' => 'array', 'monthly_income' => 'decimal:2', 'requested_amount' => 'decimal:2', 'monthly_expenses' => 'decimal:2'];
+    protected $fillable = [
+        'intake_number',
+        'intake_date',
+        'program',
+        'client_type',
+        'client_name',
+        'beneficiary_name',
+        'age',
+        'sex',
+        'civil_status',
+        'occupation',
+        'monthly_income',
+        'contact',
+        'barangay_id',
+        'address',
+        'purpose_of_assistance',
+        'requested_amount',
+        'diagnosis_or_cause_of_death',
+        'family_composition',
+        'client_sectors',
+        'income_resources',
+        'combined_family_income',
+        'employed_members_count',
+        'seasonal_members_count',
+        'monthly_expenses',
+        'supporting_documents',
+        'social_worker_assessment',
+        'applicant_signature_path',
+        'interviewer_name',
+        'interviewer_position',
+        'encoded_by',
+        'status',
+    ];
+    protected $casts = [
+        'intake_date' => 'date',
+        'family_composition' => 'array',
+        'client_sectors' => 'array',
+        'income_resources' => 'array',
+        'supporting_documents' => 'array',
+        'monthly_income' => 'decimal:2',
+        'requested_amount' => 'decimal:2',
+        'combined_family_income' => 'decimal:2',
+        'employed_members_count' => 'integer',
+        'seasonal_members_count' => 'integer',
+        'monthly_expenses' => 'decimal:2',
+    ];
 
     protected static function booted(): void
     {

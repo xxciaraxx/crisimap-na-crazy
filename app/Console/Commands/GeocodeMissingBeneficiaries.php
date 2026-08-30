@@ -13,7 +13,9 @@ class GeocodeMissingBeneficiaries extends Command
 
     public function handle(): int
     {
-        $query = Beneficiary::query()->where(fn ($query) => $query->whereNull('latitude')->orWhereNull('longitude'));
+        $query = Beneficiary::query()
+            ->where(fn ($query) => $query->whereNull('latitude')->orWhereNull('longitude'))
+            ->where(fn ($query) => $query->whereNull('geocode_precision')->orWhere('geocode_precision', '!=', 'manual'));
         if (! $this->option('retry-failed')) $query->whereNull('geocode_failed_at');
         $count = 0;
         $query->orderBy('id')->chunkById(100, function ($beneficiaries) use (&$count) {

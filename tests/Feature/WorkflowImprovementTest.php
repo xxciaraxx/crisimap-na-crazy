@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\AssistanceType;
 use App\Models\Barangay;
 use App\Models\Beneficiary;
-use App\Models\CaseRecord;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -51,14 +50,6 @@ class WorkflowImprovementTest extends TestCase
 
         $this->actingAs($user)->get(route('beneficiaries.application-form', $beneficiary))->assertOk();
         $this->actingAs($user)->get(route('beneficiaries.certificate', $beneficiary))->assertOk();
-    }
-
-    public function test_case_record_is_printable(): void
-    {
-        $user = User::factory()->create(['role' => 'social_officer']);
-        $caseRecord = CaseRecord::create(['date_of_entry' => now(), 'client_name' => 'Maria Santos', 'encoded_by' => $user->id]);
-
-        $this->actingAs($user)->get(route('case-records.print', $caseRecord))->assertOk();
     }
 
     public function test_history_mode_only_returns_approved_workflow_records_and_resolves_period(): void

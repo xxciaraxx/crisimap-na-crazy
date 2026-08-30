@@ -10,6 +10,7 @@ use App\Models\Beneficiary;
 use App\Jobs\GeocodeBeneficiary;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class BeneficiaryImportController extends Controller
@@ -45,7 +46,21 @@ class BeneficiaryImportController extends Controller
     public function store(Request $request)
     {
         $this->authorize('create', Beneficiary::class);
-        $rows = collect($request->input('rows', []))->filter(fn ($row) => filled($row['name'] ?? null));
+        $validated = $request->validate([
+            'rows' => ['required', 'array', 'max:500'],
+            'rows.*.name' => ['required', 'string', 'max:255'],
+            'rows.*.age' => ['required', 'integer', 'min:1', 'max:120'],
+            'rows.*.sex' => ['nullable', 'in:Male,Female,Other'],
+            'rows.*.contact' => ['nullable', 'string', 'max:50'],
+            'rows.*.address' => ['nullable', 'string', 'max:255'],
+            'rows.*.barangay' => ['required', 'string', 'max:255'],
+            'rows.*.assistance_type' => ['nullable', 'string', 'max:255'],
+            'rows.*.amount' => ['nullable', 'numeric', 'min:0'],
+            'rows.*.date_of_assistance' => ['nullable', 'date', 'before_or_equal:today'],
+            // Imports create applications, never approved or released aid.
+            'rows.*.status' => ['nullable', 'in:Pending'],
+        ]);
+        $rows = collect($validated['rows'])->filter(fn ($row) => filled($row['name'] ?? null));
         abort_if($rows->isEmpty(), 422, 'No valid import rows were provided.');
 
         $barangays = Barangay::pluck('id', 'name')->mapWithKeys(fn ($id, $name) => [mb_strtolower(trim($name)) => $id]);
@@ -59,19 +74,31 @@ class BeneficiaryImportController extends Controller
         }
         if ($errors) throw ValidationException::withMessages($errors);
 
-        $created = 0;
-        foreach ($rows as $row) {
-            $barangayId = $barangays->get(mb_strtolower(trim((string) $row['barangay'])));
-            $typeId = filled($row['assistance_type'] ?? null) ? $types->get(mb_strtolower(trim((string) $row['assistance_type']))) : null;
-            $beneficiary = Beneficiary::create([
-                'name' => trim($row['name']), 'age' => max(1, (int) ($row['age'] ?? 1)), 'sex' => in_array($row['sex'] ?? '', ['Male', 'Female', 'Other'], true) ? $row['sex'] : 'Other',
-                'contact' => $row['contact'] ?? null, 'address' => $row['address'] ?? null, 'barangay_id' => $barangayId, 'assistance_type_id' => $typeId,
-                'amount' => is_numeric($row['amount'] ?? null) ? $row['amount'] : null, 'date_of_assistance' => $row['date_of_assistance'] ?: now()->toDateString(),
-                'status' => in_array($row['status'] ?? '', ['Pending', 'Approved', 'Released', 'Completed'], true) ? $row['status'] : 'Pending', 'encoded_by' => $request->user()->id,
-            ]);
-            GeocodeBeneficiary::dispatch($beneficiary->id);
-            $created++;
-        }
+        $created = DB::transaction(function () use ($rows, $barangays, $types, $request) {
+            $created = 0;
+            foreach ($rows as $index => $row) {
+                $barangayId = $barangays->get(mb_strtolower(trim((string) $row['barangay'])));
+                $typeId = filled($row['assistance_type'] ?? null) ? $types->get(mb_strtolower(trim((string) $row['assistance_type']))) : null;
+                $beneficiary = new Beneficiary([
+                    'name' => trim($row['name']), 'age' => (int) $row['age'], 'sex' => $row['sex'] ?? 'Other',
+                    'contact' => $row['contact'] ?? null, 'address' => $row['address'] ?? null, 'barangay_id' => $barangayId, 'assistance_type_id' => $typeId,
+                    'amount' => $row['amount'] ?? null, 'date_of_assistance' => $row['date_of_assistance'] ?? now()->toDateString(),
+                    'status' => 'Pending', 'encoded_by' => $request->user()->id,
+                ]);
+                $beneficiary->syncIdentityFields();
+                $eligibility = app(\App\Services\BeneficiaryEligibilityChecker::class)->for($beneficiary);
+                if (! $eligibility['eligible']) {
+                    throw ValidationException::withMessages(["rows.$index.name" => 'This row violates the 90-day assistance policy and must be reviewed individually.']);
+                }
+                $beneficiary->eligibility_status = 'Eligible';
+                $beneficiary->eligibility_checked_at = now();
+                $beneficiary->save();
+                GeocodeBeneficiary::dispatch($beneficiary->id)->afterCommit();
+                $created++;
+            }
+
+            return $created;
+        });
         ActivityLog::create(['user_id' => $request->user()->id, 'action' => 'beneficiaries_imported', 'description' => "Imported {$created} beneficiary record(s).", 'subject_type' => Beneficiary::class]);
         return redirect()->route('beneficiaries.index')->with('success', "Imported {$created} beneficiary record(s).");
     }

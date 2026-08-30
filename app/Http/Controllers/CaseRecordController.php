@@ -51,7 +51,7 @@ class CaseRecordController extends Controller
         $this->authorize('create', CaseRecord::class);
         $record = $this->saveRecord($request->validated(), $request);
 
-        User::query()->where('role', 'focal_person')->where('status', 'approved')->get()->each(fn (User $user) => $user->notify(new WorkflowNotification('Case record awaiting eligibility review', "New case record awaiting eligibility review: {$record->case_number}", route('case-records.show', $record))));
+        User::query()->where('role', 'focal_person')->where('status', 'approved')->get()->each(fn (User $user) => $user->notify(new WorkflowNotification('Case record awaiting eligibility review', "New case record awaiting eligibility review: {$record->case_number}", route('case-records.show', $record), 'warning')));
         $this->logStatusChange($record, 'submitted');
 
         return redirect()->route('case-records.show', $record)->with('success', 'Case record created. You can now add assistance beneficiaries to this case.');
@@ -104,14 +104,14 @@ class CaseRecordController extends Controller
         if ($data['decision'] === 'rejected') {
             $caseRecord->update(['status' => 'rejected', 'rejection_reason' => $data['rejection_reason']]);
             $this->logStatusChange($caseRecord, 'rejected', $data['rejection_reason']);
-            $caseRecord->encoder?->notify(new WorkflowNotification('Case record rejected', "Case {$caseRecord->case_number} was rejected: {$data['rejection_reason']}", route('case-records.show', $caseRecord)));
+            $caseRecord->encoder?->notify(new WorkflowNotification('Case record rejected', "Case {$caseRecord->case_number} was rejected: {$data['rejection_reason']}", route('case-records.show', $caseRecord), 'danger'));
             return back()->with('success', 'Case record marked as rejected.');
         }
         $caseRecord->update(['status' => 'approved', 'rejection_reason' => null]);
         $this->logStatusChange($caseRecord, 'approved');
         $beneficiary = app(BeneficiaryFromCaseRecordService::class)->createFrom($caseRecord, (int) $data['assistance_type_id']);
-        User::query()->where('role', 'admin')->where('status', 'approved')->get()->each(fn (User $user) => $user->notify(new WorkflowNotification('Application awaiting approval', "New application awaiting approval: {$beneficiary->reference_code}", route('beneficiaries.show', $beneficiary))));
-        $caseRecord->encoder?->notify(new WorkflowNotification('Case marked eligible', 'Your case was marked eligible and forwarded for approval.', route('beneficiaries.show', $beneficiary)));
+        User::query()->where('role', 'admin')->where('status', 'approved')->get()->each(fn (User $user) => $user->notify(new WorkflowNotification('Application awaiting approval', "New application awaiting approval: {$beneficiary->reference_code}", route('beneficiaries.show', $beneficiary), 'warning')));
+        $caseRecord->encoder?->notify(new WorkflowNotification('Case marked eligible', 'Your case was marked eligible and forwarded for approval.', route('beneficiaries.show', $beneficiary), 'success'));
         return redirect()->route('beneficiaries.show', $beneficiary)->with('success', 'Case marked eligible. Certificate of Eligibility and Application Form are ready to print.');
     }
 
@@ -132,9 +132,9 @@ class CaseRecordController extends Controller
 
         if ($request->hasFile('client_signature')) {
             if ($caseRecord?->client_signature_path) {
-                Storage::disk('public')->delete($caseRecord->client_signature_path);
+                Storage::disk('sensitive')->delete($caseRecord->client_signature_path);
             }
-            $payload['client_signature_path'] = $request->file('client_signature')->store('case-records/signatures', 'public');
+            $payload['client_signature_path'] = $request->file('client_signature')->store('case-records/signatures', 'sensitive');
         }
 
         if ($caseRecord) {

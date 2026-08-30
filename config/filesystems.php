@@ -44,6 +44,16 @@ return [
             'throw' => false,
         ],
 
+        // Case files, signed records, and beneficiary evidence must never be
+        // exposed through the public storage symlink. They are streamed only
+        // after the relevant policy check has passed.
+        'sensitive' => [
+            'driver' => 'local',
+            'root' => storage_path('app/sensitive'),
+            'visibility' => 'private',
+            'throw' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

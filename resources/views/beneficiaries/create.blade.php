@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">Create Beneficiary</h2>
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">New Assistance Application</h2>
     </x-slot>
 
     <div class="py-6">
@@ -9,29 +9,34 @@
                 <div id="duplicate-alert" class="hidden mb-4 rounded border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"></div>
                 <div id="eligibility-alert" class="hidden mb-4 rounded border border-sky-300 bg-sky-50 p-4 text-sm text-sky-900"></div>
 
+                @if($caseRecord)
+                    <div class="mb-4 rounded border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                        This application is linked to case <strong>{{ $caseRecord->case_number }}</strong>. Client details have been prefilled; review them before submitting.
+                    </div>
+                @endif
+
                 <form id="beneficiary-form" method="POST" action="{{ route('beneficiaries.store') }}" enctype="multipart/form-data" class="space-y-5">
                     @csrf
+                    @if($caseRecord)<input type="hidden" name="case_record_id" value="{{ $caseRecord->id }}">@endif
+                    <input type="hidden" name="status" value="Pending">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label class="block text-sm">Full Name</label><input name="name" value="{{ old('name') }}" class="w-full border rounded px-3 py-2" required></div>
-                        <div><label class="block text-sm">Originating Case Record</label><select name="case_record_id" class="w-full border rounded px-3 py-2"><option value="">No linked case record</option>@foreach($caseRecords as $caseRecord)<option value="{{ $caseRecord->id }}" @selected(old('case_record_id', request('case_record_id')) == $caseRecord->id)>{{ $caseRecord->case_number }} — {{ $caseRecord->client_name }}</option>@endforeach</select></div>
-                        <div><label class="block text-sm">Age</label><input type="number" name="age" value="{{ old('age') }}" class="w-full border rounded px-3 py-2" required></div>
-                        <div><label class="block text-sm">Birth Date</label><input type="date" name="birth_date" value="{{ old('birth_date') }}" class="w-full border rounded px-3 py-2"></div>
-                        <div><label class="block text-sm">Sex</label><select name="sex" class="w-full border rounded px-3 py-2"><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></div>
+                        <div><label class="block text-sm">Full Name</label><input name="name" value="{{ old('name', $caseRecord?->client_name) }}" class="w-full border rounded px-3 py-2" required></div>
+                        <div><label class="block text-sm">Age</label><input type="number" name="age" value="{{ old('age', $caseRecord?->householdMembers->firstWhere('name', $caseRecord?->client_name)?->age) }}" class="w-full border rounded px-3 py-2" required></div>
+                        <div><label class="block text-sm">Birth Date</label><input type="date" name="birth_date" value="{{ old('birth_date', $caseRecord?->householdMembers->firstWhere('name', $caseRecord?->client_name)?->birth_date?->format('Y-m-d')) }}" class="w-full border rounded px-3 py-2"></div>
+                        <div><label class="block text-sm">Sex</label><select name="sex" class="w-full border rounded px-3 py-2"><option value="Male" @selected(old('sex', $caseRecord?->householdMembers->firstWhere('name', $caseRecord?->client_name)?->sex) === 'Male')>Male</option><option value="Female" @selected(old('sex', $caseRecord?->householdMembers->firstWhere('name', $caseRecord?->client_name)?->sex) === 'Female')>Female</option><option value="Other" @selected(old('sex', $caseRecord?->householdMembers->firstWhere('name', $caseRecord?->client_name)?->sex) === 'Other')>Other</option></select></div>
                         <div><label class="block text-sm">Contact</label><input name="contact" value="{{ old('contact') }}" class="w-full border rounded px-3 py-2"></div>
-                        <div><label class="block text-sm">Barangay</label><select name="barangay_id" class="w-full border rounded px-3 py-2"><option value="">Select</option>@foreach($barangays as $barangay)<option value="{{ $barangay->id }}">{{ $barangay->name }}</option>@endforeach</select></div>
+                        <div><label class="block text-sm">Barangay</label><select name="barangay_id" class="w-full border rounded px-3 py-2"><option value="">Select</option>@foreach($barangays as $barangay)<option value="{{ $barangay->id }}" @selected(old('barangay_id', $caseRecord?->barangay_id) == $barangay->id)>{{ $barangay->name }}</option>@endforeach</select></div>
                         <div><label class="block text-sm">Assistance Type</label><select name="assistance_type_id" class="w-full border rounded px-3 py-2"><option value="">Select</option>@foreach($assistanceTypes as $type)<option value="{{ $type->id }}">{{ $type->name }}</option>@endforeach</select></div>
                         <div><label class="block text-sm">Amount</label><input type="number" step="0.01" name="amount" value="{{ old('amount') }}" class="w-full border rounded px-3 py-2"></div>
-                        <div><label class="block text-sm">Date of Assistance</label><input type="date" name="date_of_assistance" value="{{ old('date_of_assistance') }}" class="w-full border rounded px-3 py-2"></div>
                         <div><label class="block text-sm">Address</label><input name="address" value="{{ old('address') }}" class="w-full border rounded px-3 py-2"></div>
-                        <div><label class="block text-sm">Latitude</label><input name="latitude" value="{{ old('latitude') }}" class="w-full border rounded px-3 py-2"></div>
-                        <div><label class="block text-sm">Longitude</label><input name="longitude" value="{{ old('longitude') }}" class="w-full border rounded px-3 py-2"></div>
-                        <div><label class="block text-sm">Status</label><select name="status" class="w-full border rounded px-3 py-2"><option value="Pending">Pending</option><option value="Approved">Approved</option><option value="Released">Released</option><option value="Completed">Completed</option></select></div>
+                        @include('beneficiaries._location-picker', ['beneficiary' => null])
+                        <div class="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm"><p class="text-gray-500">Application status</p><p class="font-semibold">Pending review</p></div>
                         <div><label class="block text-sm">Attachment</label><input type="file" name="attachment" class="w-full"></div>
                         <div><label class="block text-sm">Additional Documents</label><input type="file" name="attachments[]" multiple class="w-full"></div>
                     </div>
                     <div>
                         <label class="block text-sm">Case Information</label>
-                        <textarea name="case_info" rows="4" class="w-full border rounded px-3 py-2">{{ old('case_info') }}</textarea>
+                        <textarea name="case_info" rows="4" class="w-full border rounded px-3 py-2">{{ old('case_info', $caseRecord?->problem_presented) }}</textarea>
                     </div>
                     @if($canOverrideEligibility)
                         <div class="rounded-lg border border-gray-200 p-4 space-y-3">
@@ -86,7 +91,11 @@
             const payload = await response.json();
 
             if (payload.duplicate_count > 0) {
-                renderAlert(duplicateAlert, `Potential duplicate detected. Latest match: ${payload.potential_duplicate.name} (${payload.potential_duplicate.reference_code})${payload.next_eligible_at ? `. Next eligible date: ${payload.next_eligible_at}` : ''}`, true);
+                const latest = payload.potential_duplicate;
+                const latestText = latest
+                    ? ` Latest released match: ${latest.name} (${latest.reference_code}).`
+                    : ' A matching application is already on file, but no released assistance was found.';
+                renderAlert(duplicateAlert, `Potential duplicate detected.${latestText}${payload.next_eligible_at ? ` Next eligible date: ${payload.next_eligible_at}.` : ''}`, true);
             } else {
                 duplicateAlert.classList.add('hidden');
             }

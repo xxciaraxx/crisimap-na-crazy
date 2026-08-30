@@ -12,6 +12,8 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\BeneficiaryImportController;
 use App\Http\Controllers\DocumentRecordController;
 use App\Http\Controllers\GeneralIntakeSheetController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProtectedFileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -20,6 +22,9 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'setup.complete'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
 
     Route::get('/beneficiaries/duplicate-check', [BeneficiaryController::class, 'duplicateCheck'])->name('beneficiaries.duplicate-check');
     Route::get('/beneficiaries/import', [BeneficiaryImportController::class, 'create'])->name('beneficiaries.import.create');
@@ -32,10 +37,13 @@ Route::middleware(['auth', 'setup.complete'])->group(function () {
     Route::get('/case-records/{caseRecord}/documents/{document}/edit', [DocumentRecordController::class, 'edit'])->name('case-records.documents.edit');
     Route::put('/case-records/{caseRecord}/documents/{document}', [DocumentRecordController::class, 'update'])->name('case-records.documents.update');
     Route::get('/case-records/{caseRecord}/documents/{document}/preview', [DocumentRecordController::class, 'preview'])->name('case-records.documents.preview');
+    Route::get('/case-records/{caseRecord}/documents/{document}/snapshot', [ProtectedFileController::class, 'documentSnapshot'])->name('case-records.documents.snapshot');
+    Route::get('/case-records/{caseRecord}/signature', [ProtectedFileController::class, 'caseSignature'])->name('case-records.signature');
     Route::post('/case-records/{caseRecord}/documents/{document}/finalize', [DocumentRecordController::class, 'finalize'])->name('case-records.documents.finalize');
     Route::get('/case-records/{caseRecord}/print', [CaseRecordController::class, 'print'])->name('case-records.print');
     Route::post('/case-records/{caseRecord}/decide', [CaseRecordController::class, 'decideEligibility'])->name('case-records.decide');
     Route::resource('beneficiaries', BeneficiaryController::class);
+    Route::get('/attachments/{attachment}/download', [ProtectedFileController::class, 'attachment'])->name('attachments.download');
     Route::get('/beneficiaries/{beneficiary}/decide', [BeneficiaryController::class, 'decisionRedirect'])->name('beneficiaries.decide.redirect');
     Route::post('/beneficiaries/{beneficiary}/decide', [BeneficiaryController::class, 'decide'])->name('beneficiaries.decide');
     Route::post('/beneficiaries/{beneficiary}/release', [BeneficiaryController::class, 'release'])->name('beneficiaries.release');

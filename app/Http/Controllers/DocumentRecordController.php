@@ -53,7 +53,7 @@ class DocumentRecordController extends Controller
         $orientation = in_array($document->template, ['case_record', 'application_form'], true) ? 'landscape' : 'portrait';
         $pdf = Pdf::loadView('documents.print', $data)->setPaper('a4', $orientation)->output();
         $path = 'document-snapshots/'.$caseRecord->id.'/'.$document->template.'-'.$document->id.'-'.now()->format('YmdHis').'.pdf';
-        Storage::disk('public')->put($path, $pdf);
+        Storage::disk('sensitive')->put($path, $pdf);
         $document->update(['status' => 'finalized', 'template_version' => OfficialSetting::values()['template_version'] ?? '1.0', 'finalized_by' => $request->user()->id, 'finalized_at' => now(), 'snapshot_path' => $path]);
         ActivityLog::create(['user_id' => $request->user()->id, 'action' => 'document_finalized', 'description' => "Finalized {$document->template} for {$caseRecord->case_number}", 'subject_type' => DocumentRecord::class, 'subject_id' => $document->id]);
         return redirect()->route('case-records.documents.index', $caseRecord)->with('success', 'Immutable PDF snapshot finalized and ready to print.');

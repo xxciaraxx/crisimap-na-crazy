@@ -52,6 +52,32 @@ class GeneralIntakeSheetController extends Controller
         return redirect()->route('intakes.show', $intake)->with('success', 'General Intake Sheet updated.');
     }
 
+    public function print(GeneralIntakeSheet $intake)
+    {
+        $this->authorize('view', $intake);
+        $intake->load(['barangay', 'encoder', 'caseRecord.householdMembers', 'caseRecord.beneficiaries.assistanceType']);
+        
+        $caseRecord = $intake->caseRecord ?? new \App\Models\CaseRecord([
+            'case_number' => $intake->intake_number,
+            'client_name' => $intake->client_name,
+            'barangay_id' => $intake->barangay_id,
+            'problem_presented' => $intake->purpose_of_assistance,
+            'date_of_entry' => $intake->intake_date,
+        ]);
+
+        $document = new \App\Models\DocumentRecord([
+            'template' => 'general_intake_sheet',
+            'general_intake_sheet_id' => $intake->id,
+            'case_record_id' => $caseRecord->id,
+        ]);
+
+        $settings = \App\Models\OfficialSetting::values();
+        $beneficiary = $caseRecord->beneficiaries?->first();
+        $fields = [];
+
+        return view('documents.print', compact('document', 'intake', 'caseRecord', 'beneficiary', 'settings', 'fields'));
+    }
+
     private function payload(Request $request): array
     {
         return $request->validate([
@@ -60,7 +86,12 @@ class GeneralIntakeSheetController extends Controller
             'sex' => ['nullable', 'in:Male,Female,Other'], 'civil_status' => ['nullable', 'string', 'max:100'], 'occupation' => ['nullable', 'string', 'max:255'],
             'monthly_income' => ['nullable', 'numeric', 'min:0'], 'contact' => ['nullable', 'string', 'max:100'], 'barangay_id' => ['nullable', 'exists:barangays,id'], 'address' => ['nullable', 'string'],
             'purpose_of_assistance' => ['nullable', 'string'], 'requested_amount' => ['nullable', 'numeric', 'min:0'], 'diagnosis_or_cause_of_death' => ['nullable', 'string'],
-            'client_sectors' => ['nullable', 'array'], 'income_resources' => ['nullable', 'array'], 'monthly_expenses' => ['nullable', 'numeric', 'min:0'],
+            'family_composition' => ['nullable', 'array'],
+            'client_sectors' => ['nullable', 'array'], 'income_resources' => ['nullable', 'array'],
+            'combined_family_income' => ['nullable', 'numeric', 'min:0'],
+            'employed_members_count' => ['nullable', 'integer', 'min:0'],
+            'seasonal_members_count' => ['nullable', 'integer', 'min:0'],
+            'monthly_expenses' => ['nullable', 'numeric', 'min:0'],
             'supporting_documents' => ['nullable', 'array'], 'social_worker_assessment' => ['nullable', 'string'], 'interviewer_name' => ['nullable', 'string', 'max:255'], 'interviewer_position' => ['nullable', 'string', 'max:255'],
         ]);
     }

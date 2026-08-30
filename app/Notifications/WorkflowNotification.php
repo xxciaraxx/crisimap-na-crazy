@@ -13,6 +13,7 @@ class WorkflowNotification extends Notification
         private readonly string $title,
         private readonly string $message,
         private readonly ?string $url = null,
+        private readonly string $type = 'info',
     ) {}
 
     public function via(object $notifiable): array
@@ -22,6 +23,6 @@ class WorkflowNotification extends Notification
 
     public function toArray(object $notifiable): array
     {
-        return ['title' => $this->title, 'message' => $this->message, 'url' => $this->url];
+        return ['title' => $this->title, 'message' => $this->message, 'url' => $this->url, 'type' => $this->type];
     }
 }

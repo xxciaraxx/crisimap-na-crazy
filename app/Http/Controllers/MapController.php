@@ -57,12 +57,12 @@ class MapController extends Controller
     public function data(Request $request): JsonResponse
     {
         $user = $request->user();
+        $canViewSensitiveDetails = $user->hasRole('focal_person', 'admin', 'super_admin');
         $query = Beneficiary::query()
             ->active()
             ->with([
                 'barangay:id,name',
                 'assistanceType:id,name',
-                'caseRecord:id,case_number,encoded_by',
                 'encoder:id,name',
             ]);
 
@@ -71,10 +71,10 @@ class MapController extends Controller
             $query->whereIn('status', ['Approved', 'Released', 'Completed']);
         }
 
-        // Social officers can only receive markers belonging to cases they submitted.
+        // Social officers can only receive markers for applications they submitted.
         // The restrictions happen in the query, not merely in the popup UI.
         if ($user->role === 'social_officer') {
-            $query->whereHas('caseRecord', fn ($caseRecords) => $caseRecords->where('encoded_by', $user->id));
+            $query->where('encoded_by', $user->id);
         }
 
         if ($request->filled('barangay_id')) {
@@ -105,15 +105,18 @@ class MapController extends Controller
         $beneficiaries = $query->whereNotNull('latitude')->whereNotNull('longitude')
             ->orderByDesc('date_of_assistance')->limit(5000)->get([
                 'id', 'name', 'reference_code', 'status', 'barangay_id', 'assistance_type_id', 'geocode_precision',
-                'case_record_id', 'latitude', 'longitude', 'amount', 'date_of_assistance', 'approved_at', 'encoded_by', 'rejection_reason',
+                'latitude', 'longitude', 'amount', 'date_of_assistance', 'approved_at', 'encoded_by', 'rejection_reason',
             ]);
 
         return response()->json([
-            'beneficiaries' => $beneficiaries->map(function (Beneficiary $beneficiary) {
+            'beneficiaries' => $beneficiaries->map(function (Beneficiary $beneficiary) use ($canViewSensitiveDetails) {
+                $locationIsExact = $beneficiary->geocode_precision === 'manual';
                 return [
                     'id' => $beneficiary->id,
-                    'latitude' => $beneficiary->latitude,
-                    'longitude' => $beneficiary->longitude,
+                    // Social officers can monitor their cases without receiving
+                    // a household-level location or personal financial data.
+                    'latitude' => ! $canViewSensitiveDetails && $locationIsExact ? round($beneficiary->latitude, 3) : $beneficiary->latitude,
+                    'longitude' => ! $canViewSensitiveDetails && $locationIsExact ? round($beneficiary->longitude, 3) : $beneficiary->longitude,
                     'status' => $beneficiary->status,
                     'geocode_precision' => $beneficiary->geocode_precision ?? 'manual',
                     'date_availed' => $beneficiary->date_of_assistance?->toDateString(),
@@ -121,14 +124,12 @@ class MapController extends Controller
                     'rejection_reason' => $beneficiary->rejection_reason,
                     'barangay' => $beneficiary->barangay?->name,
                     'category' => array_merge(['id' => $beneficiary->assistance_type_id ?? 'other', 'name' => $beneficiary->assistanceType?->name ?? 'Other / Miscellaneous'], $this->categoryStyle($beneficiary->assistanceType?->name)),
-                    // Only roles entitled to a case record receive identifying case fields.
+                    // Only authorized roles receive identifying application fields.
                     'details' => [
-                        'name' => $beneficiary->name,
-                        'reference_code' => $beneficiary->reference_code,
-                        'amount' => $beneficiary->amount,
-                        'case_record_id' => $beneficiary->case_record_id,
-                        'case_number' => $beneficiary->caseRecord?->case_number,
-                        'social_officer' => $beneficiary->encoder?->name,
+                        'name' => $canViewSensitiveDetails ? $beneficiary->name : 'Protected beneficiary',
+                        'reference_code' => $canViewSensitiveDetails ? $beneficiary->reference_code : null,
+                        'amount' => $canViewSensitiveDetails ? $beneficiary->amount : null,
+                        'social_officer' => $canViewSensitiveDetails ? $beneficiary->encoder?->name : null,
                     ],
                 ];
             })->values(),

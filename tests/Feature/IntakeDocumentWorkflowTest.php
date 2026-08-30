@@ -36,7 +36,7 @@ class IntakeDocumentWorkflowTest extends TestCase
 
     public function test_document_draft_can_be_edited_and_finalized_snapshot_is_stable(): void
     {
-        Storage::fake('public');
+        Storage::fake('sensitive');
         $officer = User::factory()->create(['role' => 'social_officer']);
         $case = CaseRecord::create(['date_of_entry' => now(), 'client_name' => 'Ana Cruz', 'encoded_by' => $officer->id]);
         $this->actingAs($officer)->get(route('case-records.documents.index', $case))->assertOk();
@@ -45,7 +45,7 @@ class IntakeDocumentWorkflowTest extends TestCase
         $this->actingAs($officer)->post(route('case-records.documents.finalize', [$case, $document]))->assertRedirect();
         $document->refresh();
         $this->assertSame('finalized', $document->status);
-        Storage::disk('public')->assertExists($document->snapshot_path);
+        Storage::disk('sensitive')->assertExists($document->snapshot_path);
         OfficialSetting::create(['key' => 'mswdo_head_name', 'value' => 'Changed Person']);
         $this->assertSame('Original Signatory', $document->fresh()->payload['signatory_name']);
     }

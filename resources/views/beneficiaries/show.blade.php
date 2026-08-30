@@ -15,7 +15,8 @@
                 @can('delete', $beneficiary)<form action="{{ route('beneficiaries.destroy', $beneficiary) }}" method="POST" class="inline">
                     @csrf
                     @method('DELETE')
-                    <button class="bg-red-600 text-white px-4 py-2 rounded">Delete</button>
+                    <input name="archive_reason" required maxlength="1000" placeholder="Reason for archiving" class="rounded border px-2 py-1 text-sm" aria-label="Reason for archiving this beneficiary">
+                    <button class="bg-red-600 text-white px-4 py-2 rounded" onclick="return confirm('Archive this beneficiary record?')">Archive</button>
                 </form>@endcan
             </div>
         </div>
@@ -137,7 +138,7 @@
                         <div class="rounded-lg border p-4">
                             <p class="font-semibold">{{ $attachment->name }}</p>
                             <p class="text-xs text-gray-500">{{ $attachment->document_type }}</p>
-                            <a href="{{ Storage::disk('public')->url($attachment->path) }}" class="mt-2 inline-block text-blue-600 text-sm">Download</a>
+                            <a href="{{ route('attachments.download', $attachment) }}" class="mt-2 inline-block text-blue-600 text-sm">Download</a>
                         </div>
                     @empty
                         <p class="text-sm text-gray-500">No attachments.</p>

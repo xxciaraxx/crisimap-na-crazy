@@ -30,7 +30,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manage-settings', fn ($user) => $user->hasRole('super_admin'));
         View::composer('layouts.navigation', function ($view) {
             $user = auth()->user();
-            $view->with('unreadNotifications', $user ? $user->unreadNotifications()->latest()->take(8)->get() : collect());
+            $unread = $user ? $user->unreadNotifications()->latest() : null;
+            $view->with('unreadNotifications', $unread ? (clone $unread)->take(8)->get() : collect());
+            $view->with('unreadNotificationCount', $unread ? $unread->count() : 0);
             $badges = [];
             if ($user?->role === 'admin') $badges['pending_applications'] = Beneficiary::active()->where('status', 'Pending')->count();
             if ($user?->role === 'super_admin') $badges['pending_users'] = User::where('status', 'pending')->count();

@@ -48,6 +48,8 @@ class Beneficiary extends Model
         'rejected_at',
         'rejected_by',
         'archived_at',
+        'archived_by',
+        'archive_reason',
         'encoded_by',
     ];
 
@@ -108,8 +110,8 @@ class Beneficiary extends Model
 
     public function approvedBy() { return $this->belongsTo(User::class, 'approved_by'); }
     public function releasedBy() { return $this->belongsTo(User::class, 'released_by'); }
+    public function archivedBy() { return $this->belongsTo(User::class, 'archived_by'); }
     public function documents() { return $this->hasMany(DocumentRecord::class); }
-
     public function attachments()
     {
         return $this->hasMany(Attachment::class);

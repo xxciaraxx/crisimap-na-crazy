@@ -20,7 +20,7 @@ class ActivityLogController extends Controller
         return view('activity-logs.index', [
             'logs' => $logs,
             'users' => User::orderBy('name')->get(['id', 'name']),
-            'subjectTypes' => [\App\Models\CaseRecord::class => 'Case records', \App\Models\Beneficiary::class => 'Beneficiaries', User::class => 'Users'],
+            'subjectTypes' => [\App\Models\GeneralIntakeSheet::class => 'General Intake Sheets', \App\Models\Beneficiary::class => 'Beneficiaries', User::class => 'Users'],
         ]);
     }
 }

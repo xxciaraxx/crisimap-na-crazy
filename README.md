@@ -5,7 +5,7 @@ CRISIMAP is a GIS-based monitoring and mapping system for AICS beneficiary distr
 ## Features
 - Role-based access for MSWDO Head, AICS Focal Person, Social Welfare Officer, and Technical Expert
 - Beneficiary CRUD with geocoding support
-- Interactive Leaflet map with OSM tiles
+- Interactive Tagudin-only Leaflet map with locally served barangay boundaries
 - Dashboard analytics and recent activity
 - PDF and Excel report exports
 - Settings for barangays and assistance types

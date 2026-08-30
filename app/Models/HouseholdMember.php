@@ -10,7 +10,7 @@ class HouseholdMember extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'relationship_to_client', 'birth_date', 'age', 'sex', 'civil_status', 'religion',
+        'case_record_id', 'name', 'relationship_to_client', 'birth_date', 'age', 'sex', 'civil_status', 'religion',
         'educational_attainment', 'occupation', 'income', 'remarks',
     ];
 
