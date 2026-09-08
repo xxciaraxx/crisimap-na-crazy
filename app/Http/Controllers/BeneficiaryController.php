@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreBeneficiaryRequest;
 use App\Http\Requests\UpdateBeneficiaryRequest;
 use App\Models\ActivityLog;
 use App\Models\AssistanceType;
@@ -11,6 +10,7 @@ use App\Models\Barangay;
 use App\Models\BarangayCentroid;
 use App\Models\Beneficiary;
 use App\Models\CaseRecord;
+use App\Models\GeneralIntakeSheet;
 use App\Models\User;
 use App\Jobs\GeocodeBeneficiary;
 use App\Services\BeneficiaryGeocoder;
@@ -27,58 +27,55 @@ use Illuminate\Validation\ValidationException;
 
 class BeneficiaryController extends Controller
 {
+    private const TAGUDIN_MAP_FALLBACK = [
+        'latitude' => 16.9355,
+        'longitude' => 120.4442,
+    ];
+
     public function index(Request $request)
     {
         $this->authorize('viewAny', Beneficiary::class);
-        $query = $this->filteredQuery($request)
+        $statusScope = null;
+        if ($request->routeIs('applications.index')) {
+            $request->merge(['status' => null]);
+            $statusScope = ['Pending', 'Approved'];
+        } elseif ($request->routeIs('beneficiary-records.index')) {
+            $request->merge(['status' => null]);
+            $statusScope = ['Released', 'Rejected'];
+        }
+
+        $query = $this->filteredQuery($request, $statusScope)
             ->with(['barangay', 'assistanceType', 'encoder', 'overrideUser', 'rejectedBy'])
             ->orderByDesc('date_of_assistance')
             ->orderByDesc('created_at');
 
         $beneficiaries = $query->paginate(20)->withQueryString();
-        $missingLocationCount = (clone $this->filteredQuery($request))
-            ->where(fn (Builder $query) => $query->whereNull('latitude')->orWhereNull('longitude'))
-            ->count();
-
+        $pendingIntakes = collect();
+        if ($request->routeIs('applications.index') && in_array($request->user()->role, ['focal_person', 'admin', 'super_admin'], true)) {
+            $pendingIntakes = GeneralIntakeSheet::query()
+                ->with('barangay')
+                ->when($request->user()->role === 'focal_person', fn ($query) => $query->where('workflow_stage', 'eligibility_review'))
+                ->when(in_array($request->user()->role, ['admin', 'super_admin'], true), fn ($query) => $query->where('workflow_stage', 'head_approval'))
+                ->latest('intake_date')
+                ->latest()
+                ->get();
+        }
         return view('beneficiaries.index', [
             'beneficiaries' => $beneficiaries,
             'barangays' => Barangay::orderBy('name')->get(),
             'assistanceTypes' => AssistanceType::orderBy('name')->get(),
-            'missingLocationCount' => $missingLocationCount,
+            'pageTitle' => $request->routeIs('applications.index') ? 'Applications' : 'Beneficiary Records',
+            'pageDescription' => $request->routeIs('applications.index')
+                ? 'Applications awaiting approval or fund release.'
+                : 'Released and rejected assistance records for new and returning applicants.',
+            'pendingIntakes' => $pendingIntakes,
         ]);
-    }
-
-    public function create(Request $request)
-    {
-        $this->authorize('create', Beneficiary::class);
-        $barangays = Barangay::orderBy('name')->get();
-        $caseRecord = $request->filled('case_record_id')
-            ? CaseRecord::with(['barangay', 'householdMembers'])->findOrFail($request->integer('case_record_id'))
-            : null;
-
-        if ($caseRecord) {
-            $this->authorize('view', $caseRecord);
-        }
-
-        return view('beneficiaries.create', [
-            'barangays' => $barangays,
-            'mapCentroids' => $this->mapCentroids($barangays),
-            'assistanceTypes' => AssistanceType::orderBy('name')->get(),
-            'canOverrideEligibility' => $this->canOverrideEligibility(),
-            'caseRecord' => $caseRecord,
-        ]);
-    }
-
-    public function store(StoreBeneficiaryRequest $request)
-    {
-        $this->authorize('create', Beneficiary::class);
-        return $this->persist($request->validated(), $request);
     }
 
     public function show(Beneficiary $beneficiary)
     {
         $this->authorize('view', $beneficiary);
-        $beneficiary->load(['barangay', 'assistanceType', 'attachments.uploader', 'encoder', 'overrideUser', 'rejectedBy']);
+        $beneficiary->load(['barangay', 'assistanceType', 'attachments.uploader', 'encoder', 'overrideUser', 'rejectedBy', 'intake']);
 
         return view('beneficiaries.show', array_merge(
             compact('beneficiary'),
@@ -131,8 +128,14 @@ class BeneficiaryController extends Controller
 
         if ($data['decision'] === 'rejected') {
             $beneficiary->update(['status' => 'Rejected', 'rejection_reason' => $data['rejection_reason'], 'rejected_at' => now(), 'rejected_by' => $request->user()->id]);
+            $beneficiary->intake?->update([
+                'status' => 'rejected',
+                'workflow_stage' => 'rejected',
+                'rejection_reason' => $data['rejection_reason'],
+                'rejected_by' => $request->user()->id,
+                'rejected_at' => now(),
+            ]);
             $this->logActivity('rejected', 'MSWDO Head rejected application for '.$beneficiary->name.': '.$data['rejection_reason'], $beneficiary);
-            $beneficiary->encoder?->notify(new WorkflowNotification('Application rejected', "Application {$beneficiary->reference_code} rejected: {$data['rejection_reason']}", route('beneficiaries.show', $beneficiary), 'danger'));
             return back()->with('success', 'Application rejected.');
         }
 
@@ -149,8 +152,14 @@ class BeneficiaryController extends Controller
         }
 
         $beneficiary->update(['status' => 'Approved', 'approved_at' => now(), 'approved_by' => $request->user()->id, 'eligibility_checked_at' => now()]);
+        $beneficiary->intake?->update([
+            'status' => 'approved',
+            'workflow_stage' => 'approved',
+            'rejection_reason' => null,
+            'rejected_by' => null,
+            'rejected_at' => null,
+        ]);
         $this->logActivity('approved', 'MSWDO Head approved application for '.$beneficiary->name, $beneficiary);
-        $beneficiary->encoder?->notify(new WorkflowNotification('Application approved', "Application {$beneficiary->reference_code} approved — release once billing clears.", route('beneficiaries.show', $beneficiary), 'success'));
         return back()->with('success', 'Application approved. Focal person can release funds once billing clears.');
     }
 
@@ -176,22 +185,128 @@ class BeneficiaryController extends Controller
             // A missing assistance date is finalized when assistance is actually released.
             'date_of_assistance' => $beneficiary->date_of_assistance ?? now()->toDateString(),
         ]);
-        if (blank($beneficiary->latitude)) GeocodeBeneficiary::dispatch($beneficiary->id);
+        $beneficiary->intake?->update([
+            'status' => 'released',
+            'workflow_stage' => 'released',
+            'rejection_reason' => null,
+            'rejected_by' => null,
+            'rejected_at' => null,
+        ]);
+        if (blank($beneficiary->latitude)) {
+            $fallback = app(BeneficiaryGeocoder::class)->jitteredCentroidFor($beneficiary->barangay_id, $beneficiary->id);
+            $fallback ??= self::TAGUDIN_MAP_FALLBACK;
+            if ($fallback) {
+                $beneficiary->forceFill([
+                    'latitude' => $fallback['latitude'],
+                    'longitude' => $fallback['longitude'],
+                    'geocode_precision' => $beneficiary->barangay_id ? 'barangay_centroid' : 'municipal_centroid',
+                    'geocoded_at' => now(),
+                ])->saveQuietly();
+                $this->notifyGeotaggedRelease($beneficiary);
+            } else {
+                $this->notifyGeotagFailure($beneficiary);
+                GeocodeBeneficiary::dispatch($beneficiary->id);
+            }
+        }
         User::query()->where('role', 'admin')->where('status', 'approved')->get()->each(fn (User $user) => $user->notify(new WorkflowNotification('Beneficiary released', "{$beneficiary->name} has been marked released and is now an active AICS beneficiary.", route('beneficiaries.show', $beneficiary), 'success')));
         $this->logActivity('released', 'Marked as released for '.$beneficiary->name, $beneficiary);
         return back()->with('success', $beneficiary->name.' is now an active AICS beneficiary and will appear on the map.');
     }
 
+    private function notifyGeotaggedRelease(Beneficiary $beneficiary): void
+    {
+        if ($beneficiary->released_by !== auth()->id() || auth()->user()->role !== 'focal_person') {
+            return;
+        }
+
+        auth()->user()->notify(new WorkflowNotification(
+            'Record successfully geotagged',
+            "{$beneficiary->name} was released and successfully added to the map.",
+            route('beneficiaries.show', $beneficiary),
+            'geotag_success'
+        ));
+    }
+
+    private function notifyGeotagFailure(Beneficiary $beneficiary): void
+    {
+        if ($beneficiary->released_by !== auth()->id() || auth()->user()->role !== 'focal_person') {
+            return;
+        }
+
+        auth()->user()->notify(new WorkflowNotification(
+            'Record unsuccessfully geotagged',
+            "{$beneficiary->name} was released, but its location could not be added to the map.",
+            route('beneficiaries.show', $beneficiary),
+            'geotag_failure'
+        ));
+    }
+
     public function applicationForm(Beneficiary $beneficiary)
     {
         $this->authorize('view', $beneficiary);
-        if (! in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden'], true)) {
+        if (! in_array($beneficiary->status, ['Approved', 'Released', 'Completed'], true)
+            || ! in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden', null], true)) {
             return back()->with('error', 'Only eligible applications can be printed.');
         }
 
-        $beneficiary->load(['barangay', 'assistanceType', 'encoder', 'overrideUser']);
+        $beneficiary->load([
+            'barangay',
+            'assistanceType',
+            'encoder',
+            'overrideUser',
+            'caseRecord.intake.barangay',
+            'caseRecord.barangay',
+            'caseRecord.householdMembers',
+        ]);
+
         return Pdf::loadView('beneficiaries.application-form', compact('beneficiary'))
-            ->download('application-form-'.$beneficiary->reference_code.'.pdf');
+            ->setPaper('a4', 'portrait')
+            ->download('final-aics-form-'.$beneficiary->reference_code.'.pdf');
+    }
+
+    public function editApplicationForm(Beneficiary $beneficiary)
+    {
+        $this->authorize('updateFinalAics', $beneficiary);
+        if (! in_array($beneficiary->status, ['Approved', 'Released', 'Completed'], true)
+            || ! in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden', null], true)) {
+            return back()->with('error', 'Only eligible applications can use the Final AICS form.');
+        }
+
+        $beneficiary->load(['barangay', 'assistanceType', 'intake']);
+
+        return view('beneficiaries.application-form-edit', [
+            'beneficiary' => $beneficiary,
+            'payload' => $beneficiary->final_aics_payload ?? [],
+        ]);
+    }
+
+    public function updateApplicationForm(Request $request, Beneficiary $beneficiary)
+    {
+        $this->authorize('updateFinalAics', $beneficiary);
+        $data = $request->validate([
+            'resettled' => ['nullable', 'boolean'],
+            'disaster_victim' => ['nullable', 'in:ND,MD'],
+            'date_of_occurrence' => ['nullable', 'date'],
+            'estimated_damage' => ['nullable', 'string', 'max:255'],
+            'casualty_name' => ['nullable', 'string', 'max:255'],
+            'client_signature_name' => ['nullable', 'string', 'max:255'],
+            'receipt_date' => ['nullable', 'date'],
+            'receipt_number' => ['nullable', 'string', 'max:100'],
+            'receipt_amount' => ['nullable', 'numeric', 'min:0'],
+            'receipt_purpose' => ['nullable', 'string', 'max:255'],
+            'payee_name' => ['nullable', 'string', 'max:255'],
+            'payee_address' => ['nullable', 'string', 'max:255'],
+            'payee_tax_certificate' => ['nullable', 'string', 'max:100'],
+            'payee_date_of_issue' => ['nullable', 'date'],
+            'payee_place_of_issue' => ['nullable', 'string', 'max:255'],
+            'witness_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $data['resettled'] = $request->boolean('resettled');
+        $beneficiary->forceFill(['final_aics_payload' => $data])->save();
+
+        return redirect()->route('beneficiaries.application-form.edit', $beneficiary)
+            ->with('success', 'Final AICS form draft saved. Review it, then print when ready.');
     }
 
     public function certificate(Beneficiary $beneficiary)
@@ -341,9 +456,6 @@ class BeneficiaryController extends Controller
         });
 
         $this->syncStatusTimestamps($beneficiary);
-        if ($beneficiary->status === 'Approved' && $beneficiary->wasChanged('status')) {
-            $beneficiary->encoder?->notify(new WorkflowNotification('Application approved', "Application {$beneficiary->reference_code} was approved.", route('beneficiaries.show', $beneficiary)));
-        }
         if (! $manualLocation && filled($beneficiary->address) && $beneficiary->geocode_precision !== 'manual') {
             GeocodeBeneficiary::dispatch($beneficiary->id)->delay(now()->addSecond());
         }
@@ -474,9 +586,13 @@ class BeneficiaryController extends Controller
         }
     }
 
-    private function filteredQuery(Request $request): Builder
+    private function filteredQuery(Request $request, ?array $statusScope = null): Builder
     {
         $query = Beneficiary::query()->active();
+
+        if ($statusScope !== null) {
+            $query->whereIn('status', $statusScope);
+        }
 
         if ($request->filled('barangay_id')) {
             $query->where('barangay_id', $request->integer('barangay_id'));
@@ -484,7 +600,7 @@ class BeneficiaryController extends Controller
         if ($request->filled('assistance_type_id')) {
             $query->where('assistance_type_id', $request->integer('assistance_type_id'));
         }
-        if ($request->filled('status')) {
+        if ($statusScope === null && $request->filled('status')) {
             $query->where('status', $request->string('status'));
         }
         if ($request->filled('search')) {

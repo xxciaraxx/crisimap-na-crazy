@@ -243,7 +243,7 @@
                                title="Must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character."
                                autocomplete="new-password" placeholder="Password"
                                aria-describedby="password-error passwordRequirements passwordMessage">
-                        <button class="password-toggle" type="button" data-password-toggle="password" aria-label="Show password" aria-pressed="false">SHOW</button>
+                        <button class="password-toggle" type="button" data-password-toggle="password" aria-label="Show password" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/><path class="eye-slash" d="m4 4 16 16"/></svg></button>
                         @error('password')<p class="field-error" id="password-error">{{ $message }}</p>@enderror
                         <p id="passwordMessage" class="password-message" aria-live="polite">Great! Password meets all requirements.</p>
                         <div id="passwordRequirements" class="password-requirements" aria-live="polite">
@@ -261,7 +261,7 @@
                     <div class="input-group @error('password_confirmation') has-error @enderror">
                         <label for="password_confirmation">Confirm password</label><span class="input-icon lock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16.5 10.5V7.875a4.5 4.5 0 1 0-9 0V10.5"/><path d="M6.75 10.5h10.5a1.5 1.5 0 0 1 1.5 1.5v6.75a1.5 1.5 0 0 1-1.5 1.5H6.75a1.5 1.5 0 0 1-1.5-1.5V12a1.5 1.5 0 0 1 1.5-1.5Z"/></svg></span>
                         <input id="password_confirmation" name="password_confirmation" type="password" required autocomplete="new-password" placeholder="Confirm password" aria-describedby="password-confirmation-error password-confirmation-mismatch">
-                        <button class="password-toggle" type="button" data-password-toggle="password_confirmation" aria-label="Show password" aria-pressed="false">SHOW</button>
+                        <button class="password-toggle" type="button" data-password-toggle="password_confirmation" aria-label="Show password" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/><path class="eye-slash" d="m4 4 16 16"/></svg></button>
                         @error('password_confirmation')<p class="field-error" id="password-confirmation-error">{{ $message }}</p>@enderror
                         <p class="field-error" id="password-confirmation-mismatch" style="display:none" aria-live="assertive">Passwords do not match.</p>
                     </div>
@@ -326,7 +326,6 @@
         document.querySelectorAll('[data-password-toggle]').forEach(toggle => toggle.addEventListener('click', () => {
             const field = document.getElementById(toggle.dataset.passwordToggle), shown = field.type === 'text';
             field.type = shown ? 'password' : 'text';
-            toggle.textContent = shown ? 'SHOW' : 'HIDE';
             toggle.classList.toggle('is-visible', !shown);
             toggle.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
             toggle.setAttribute('aria-pressed', String(!shown));

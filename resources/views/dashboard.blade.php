@@ -11,13 +11,54 @@
             </section>
 
             <section class="dashboard-metrics" aria-label="Program summary">
-                <article class="dashboard-metric dashboard-metric-primary"><p>Total beneficiaries</p><strong>{{ number_format($totalBeneficiaries) }}</strong><span>Active assistance records</span></article>
+                <article class="dashboard-metric dashboard-metric-primary dashboard-metric-beneficiaries"><p>Total beneficiary records</p><strong>{{ number_format($totalBeneficiaries) }}</strong><div class="dashboard-metric-details"><span><b>{{ number_format($singleRecordBeneficiaries) }}</b> Single-record</span><span><b>{{ number_format($returningRecords) }}</b> Returning records</span></div></article>
                 <article class="dashboard-metric"><p>This month</p><strong>{{ number_format($thisMonth) }}</strong><span>New assistance records</span></article>
                 <article class="dashboard-metric"><p>Released</p><strong>{{ number_format($released) }}</strong><span>Completed assistance</span></article>
                 <article class="dashboard-metric"><p>Approved</p><strong>{{ number_format($approved) }}</strong><span>Awaiting release</span></article>
+                @if(auth()->user()->role === 'admin')
+                    <article class="dashboard-metric"><p>Pending review</p><strong>{{ number_format($pending) }}</strong><span>Applications awaiting approval</span></article>
+                @endif
                 <article class="dashboard-metric dashboard-metric-amount"><p>Average assistance</p><strong>&#8369;{{ number_format($averageAmount, 2) }}</strong><span>Per active record</span></article>
                 <article class="dashboard-metric"><p>Release rate</p><strong>{{ $releaseRate }}%</strong><span>Of active records</span></article>
             </section>
+
+            @if(auth()->user()->role === 'admin')
+                <section class="bg-white shadow rounded-xl p-5" aria-labelledby="pending-applications-heading">
+                    <div class="flex items-center justify-between gap-4 mb-4">
+                        <div>
+                            <h2 id="pending-applications-heading" class="font-semibold text-lg">Applications awaiting approval</h2>
+                            <p class="text-sm text-gray-500">Review the latest pending applications and record a decision.</p>
+                        </div>
+                        <a href="{{ route('applications.index') }}" class="text-sm text-blue-600 whitespace-nowrap">View all</a>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Applicant</th>
+                                    <th class="px-3 py-2 text-left">Assistance</th>
+                                    <th class="px-3 py-2 text-left">Barangay</th>
+                                    <th class="px-3 py-2 text-left">Submitted</th>
+                                    <th class="px-3 py-2 text-left">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($pendingApplications as $application)
+                                    <tr class="border-t">
+                                        <td class="px-3 py-2 font-medium">{{ $application->name }}</td>
+                                        <td class="px-3 py-2">{{ $application->assistanceType->name ?? 'Unassigned' }}</td>
+                                        <td class="px-3 py-2">{{ $application->barangay->name ?? 'Unassigned' }}</td>
+                                        <td class="px-3 py-2">{{ $application->created_at?->format('M d, Y') }}</td>
+                                        <td class="px-3 py-2"><a href="{{ route('beneficiaries.show', $application) }}" class="text-blue-600">Review</a></td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">No applications awaiting approval.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            @endif
 
             <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                 <div class="xl:col-span-2 space-y-6">

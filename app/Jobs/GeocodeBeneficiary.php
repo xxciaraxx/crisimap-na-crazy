@@ -3,6 +3,8 @@
 namespace App\Jobs;
 
 use App\Models\Beneficiary;
+use App\Models\User;
+use App\Notifications\WorkflowNotification;
 use App\Services\BeneficiaryGeocoder;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -57,17 +59,63 @@ class GeocodeBeneficiary implements ShouldQueue
             $beneficiary->forceFill([
                 'latitude' => $location['latitude'],
                 'longitude' => $location['longitude'],
+                'barangay_id' => $location['barangay_id'] ?? $beneficiary->barangay_id,
                 'geocode_precision' => $location['precision'],
                 'geocoded_at' => now(),
             ])->saveQuietly();
+            $this->notifyFocalPerson($beneficiary);
+        } else {
+            $beneficiary->forceFill([
+                'geocode_failed_at' => now(),
+                'geocode_failure_reason' => 'No location was returned by the geocoder.',
+            ])->saveQuietly();
+            $this->notifyGeotagFailure($beneficiary);
         }
+    }
+
+    private function notifyFocalPerson(Beneficiary $beneficiary): void
+    {
+        $recipient = User::query()
+            ->whereKey($beneficiary->released_by)
+            ->where('role', 'focal_person')
+            ->where('status', 'approved')
+            ->first();
+
+        $recipient?->notify(new WorkflowNotification(
+            'Record successfully geotagged',
+            "{$beneficiary->name} was released and successfully added to the map.",
+            route('beneficiaries.show', $beneficiary),
+            'geotag_success'
+        ));
+    }
+
+    private function notifyGeotagFailure(Beneficiary $beneficiary): void
+    {
+        $recipient = User::query()
+            ->whereKey($beneficiary->released_by)
+            ->where('role', 'focal_person')
+            ->where('status', 'approved')
+            ->first();
+
+        $recipient?->notify(new WorkflowNotification(
+            'Record unsuccessfully geotagged',
+            "{$beneficiary->name} was released, but its location could not be added to the map.",
+            route('beneficiaries.show', $beneficiary),
+            'geotag_failure'
+        ));
     }
 
     public function failed(Throwable $exception): void
     {
-        Beneficiary::whereKey($this->beneficiaryId)->update([
+        $beneficiary = Beneficiary::find($this->beneficiaryId);
+        if (! $beneficiary) {
+            return;
+        }
+
+        $beneficiary->update([
             'geocode_failed_at' => now(),
             'geocode_failure_reason' => mb_substr($exception->getMessage(), 0, 1000),
         ]);
+        $this->notifyGeotagFailure($beneficiary);
     }
 }

@@ -18,6 +18,16 @@ class DashboardController extends Controller
             return $this->superAdminDashboard();
         }
 
+        $pendingApplications = auth()->user()->role === 'admin'
+            ? Beneficiary::query()
+                ->active()
+                ->where('status', 'Pending')
+                ->with(['barangay', 'assistanceType', 'encoder'])
+                ->latest('created_at')
+                ->limit(10)
+                ->get()
+            : collect();
+
         $recentBeneficiaries = Beneficiary::query()
             ->active()
             ->with(['barangay', 'assistanceType', 'encoder'])
@@ -27,7 +37,12 @@ class DashboardController extends Controller
             ->get();
 
         $baseQuery = Beneficiary::query()->active();
+        // Count every active assistance record so returning applicants are included.
         $totalBeneficiaries = (clone $baseQuery)->count();
+        $recordCountsByPerson = (clone $baseQuery)->pluck('history_key')->countBy();
+        $singleRecordBeneficiaries = $recordCountsByPerson->filter(fn (int $count) => $count === 1)->count();
+        $returningBeneficiaries = $recordCountsByPerson->filter(fn (int $count) => $count > 1)->count();
+        $returningRecords = $recordCountsByPerson->filter(fn (int $count) => $count > 1)->sum(fn (int $count) => $count - 1);
         $thisMonth = (clone $baseQuery)
             ->whereBetween('date_of_assistance', [now()->startOfMonth(), now()->endOfMonth()])
             ->count();
@@ -113,6 +128,9 @@ class DashboardController extends Controller
 
         $insights = $this->buildInsights([
             'totalBeneficiaries' => $totalBeneficiaries,
+            'singleRecordBeneficiaries' => $singleRecordBeneficiaries,
+            'returningBeneficiaries' => $returningBeneficiaries,
+            'returningRecords' => $returningRecords,
             'totalAmount' => $totalAmount,
             'averageAmount' => $averageAmount,
             'approvalRate' => $approvalRate,
@@ -126,6 +144,9 @@ class DashboardController extends Controller
         return view('dashboard', compact(
             'recentBeneficiaries',
             'totalBeneficiaries',
+            'singleRecordBeneficiaries',
+            'returningBeneficiaries',
+            'returningRecords',
             'thisMonth',
             'released',
             'approved',
@@ -143,7 +164,8 @@ class DashboardController extends Controller
             'lowCoverageBarangays',
             'growthTrend',
             'forecast',
-            'insights'
+            'insights',
+            'pendingApplications'
         ));
     }
 
@@ -186,6 +208,17 @@ class DashboardController extends Controller
             'failed' => Beneficiary::query()->where('geocode_precision', 'failed')->count(),
         ];
 
+        $recordCountsByPerson = Beneficiary::query()
+            ->active()
+            ->pluck('history_key')
+            ->countBy();
+        $beneficiarySummary = [
+            'total_records' => $recordCountsByPerson->sum(),
+            'single_record_beneficiaries' => $recordCountsByPerson->filter(fn (int $count) => $count === 1)->count(),
+            'returning_beneficiaries' => $recordCountsByPerson->filter(fn (int $count) => $count > 1)->count(),
+            'returning_records' => $recordCountsByPerson->filter(fn (int $count) => $count > 1)->sum(fn (int $count) => $count - 1),
+        ];
+
         return view('dashboard.super-admin', compact(
             'pendingApprovals',
             'roleRoster',
@@ -193,7 +226,8 @@ class DashboardController extends Controller
             'incompleteOnboarding',
             'recentActivity',
             'referenceData',
-            'geocodingHealth'
+            'geocodingHealth',
+            'beneficiarySummary'
         ));
     }
 

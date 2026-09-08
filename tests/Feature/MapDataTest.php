@@ -13,7 +13,7 @@ class MapDataTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_social_officer_only_receives_markers_for_their_own_applications_without_sensitive_fields(): void
+    public function test_social_officer_receives_the_same_full_map_view_as_focal_person(): void
     {
         $officer = User::factory()->create(['role' => 'social_officer']);
         $otherOfficer = User::factory()->create(['role' => 'social_officer']);
@@ -30,10 +30,8 @@ class MapDataTest extends TestCase
 
         $response = $this->actingAs($officer)->getJson(route('map.data'));
 
-        $response->assertOk()->assertJsonCount(1, 'beneficiaries')
-            ->assertJsonPath('beneficiaries.0.details.name', 'Protected beneficiary')
-            ->assertJsonMissing(['address' => 'Confidential street address'])
-            ->assertJsonMissing(['case_info' => 'Sensitive medical narrative'])
-            ->assertJsonMissing(['name' => 'Private Client']);
+        $response->assertOk()->assertJsonCount(2, 'beneficiaries')
+            ->assertJsonPath('beneficiaries.0.details.name', 'Maria Santos')
+            ->assertJsonPath('beneficiaries.1.details.name', 'Private Client');
     }
 }

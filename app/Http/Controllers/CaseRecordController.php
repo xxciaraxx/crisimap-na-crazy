@@ -103,15 +103,33 @@ class CaseRecordController extends Controller
         ]);
         if ($data['decision'] === 'rejected') {
             $caseRecord->update(['status' => 'rejected', 'rejection_reason' => $data['rejection_reason']]);
+            $caseRecord->intake?->update([
+                'status' => 'rejected',
+                'workflow_stage' => 'rejected',
+                'rejection_reason' => $data['rejection_reason'],
+                'rejected_by' => auth()->id(),
+                'rejected_at' => now(),
+            ]);
             $this->logStatusChange($caseRecord, 'rejected', $data['rejection_reason']);
-            $caseRecord->encoder?->notify(new WorkflowNotification('Case record rejected', "Case {$caseRecord->case_number} was rejected: {$data['rejection_reason']}", route('case-records.show', $caseRecord), 'danger'));
             return back()->with('success', 'Case record marked as rejected.');
         }
         $caseRecord->update(['status' => 'approved', 'rejection_reason' => null]);
+        $caseRecord->intake?->update([
+            'status' => 'approved',
+            'workflow_stage' => 'head_approval',
+            'rejection_reason' => null,
+            'rejected_by' => null,
+            'rejected_at' => null,
+        ]);
         $this->logStatusChange($caseRecord, 'approved');
         $beneficiary = app(BeneficiaryFromCaseRecordService::class)->createFrom($caseRecord, (int) $data['assistance_type_id']);
+        User::query()->whereKey($caseRecord->encoded_by)->where('role', 'social_officer')->get()->each(fn (User $user) => $user->notify(new WorkflowNotification(
+            'Case record approved',
+            "General Intake Sheet {$caseRecord->intake?->intake_number} and case record {$caseRecord->case_number} were approved by the Focal Person.",
+            route('case-records.show', $caseRecord),
+            'success'
+        )));
         User::query()->where('role', 'admin')->where('status', 'approved')->get()->each(fn (User $user) => $user->notify(new WorkflowNotification('Application awaiting approval', "New application awaiting approval: {$beneficiary->reference_code}", route('beneficiaries.show', $beneficiary), 'warning')));
-        $caseRecord->encoder?->notify(new WorkflowNotification('Case marked eligible', 'Your case was marked eligible and forwarded for approval.', route('beneficiaries.show', $beneficiary), 'success'));
         return redirect()->route('beneficiaries.show', $beneficiary)->with('success', 'Case marked eligible. Certificate of Eligibility and Application Form are ready to print.');
     }
 

@@ -24,7 +24,7 @@ class StoreCaseRecordRequest extends FormRequest
             'members' => ['nullable', 'array'], 'members.*.name' => ['nullable', 'string', 'max:255'],
             'members.*.relationship_to_client' => ['nullable', 'string', 'max:100'], 'members.*.birth_date' => ['nullable', 'date'],
             'members.*.age' => ['nullable', 'integer', 'min:0', 'max:120'], 'members.*.sex' => ['nullable', 'in:Male,Female,Other'],
-            'members.*.civil_status' => ['nullable', 'string', 'max:100'], 'members.*.religion' => ['nullable', 'string', 'max:100'],
+            'members.*.civil_status' => ['nullable', 'in:Single,Married,Widowed'], 'members.*.religion' => ['nullable', 'string', 'max:100'],
             'members.*.educational_attainment' => ['nullable', 'string', 'max:255'], 'members.*.occupation' => ['nullable', 'string', 'max:255'],
             'members.*.income' => ['nullable', 'numeric', 'min:0'], 'members.*.remarks' => ['nullable', 'string', 'max:1000'],
         ];

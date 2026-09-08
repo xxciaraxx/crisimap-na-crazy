@@ -1,1 +1,4 @@
-<x-app-layout><x-slot name="header"><h2 class="text-xl font-semibold">Edit {{ $intake->intake_number }}</h2></x-slot><div class="py-6"><form method="POST" action="{{ route('intakes.update', $intake) }}" class="mx-auto max-w-4xl space-y-4 rounded bg-white p-6 shadow">@csrf @method('PUT') @include('intakes._form')<button class="rounded bg-green-700 px-4 py-2 text-white">Save Intake Draft</button></form></div></x-app-layout>
+<x-app-layout>
+	<x-slot name="header"><div><h2 class="text-xl font-semibold text-slate-900">Edit {{ $intake->intake_number }}</h2><p class="text-sm text-slate-500">Update the official A4 intake form.</p></div></x-slot>
+	<div class="gis-page"><form method="POST" action="{{ route('intakes.update', $intake) }}">@csrf @method('PUT') @include('intakes._form')</form></div>
+</x-app-layout>

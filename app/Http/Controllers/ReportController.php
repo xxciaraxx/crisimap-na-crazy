@@ -8,8 +8,6 @@ use App\Models\Beneficiary;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Carbon;
-use Illuminate\Pagination\LengthAwarePaginator;
 use App\Support\DateRangeResolver;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -43,7 +41,7 @@ class ReportController extends Controller
         return Excel::download(new class($records) implements FromCollection, WithHeadings {
             public function __construct(protected Collection $records) {}
 
-            public function collection()
+            public function collection(): Collection
             {
                 return $this->records->map(fn ($beneficiary) => [
                     $beneficiary->reference_code ?? 'N/A',
@@ -96,11 +94,9 @@ class ReportController extends Controller
 
     private function filteredQuery(Request $request)
     {
-        $query = Beneficiary::query()->active();
-
-        if ($request->user()->role === 'social_officer') {
-            $query->where('encoded_by', $request->user()->id);
-        }
+        $query = Beneficiary::query()
+            ->active()
+            ->where('status', 'Released');
 
         $this->applyDatePreset($query, $request->input('report_type', 'summary'));
 
@@ -109,9 +105,6 @@ class ReportController extends Controller
         }
         if ($request->filled('assistance_type_id')) {
             $query->where('assistance_type_id', $request->integer('assistance_type_id'));
-        }
-        if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
         }
         if ($request->filled('eligibility_status')) {
             $query->where('eligibility_status', $request->string('eligibility_status'));

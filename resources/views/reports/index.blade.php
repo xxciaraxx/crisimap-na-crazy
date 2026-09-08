@@ -43,12 +43,8 @@
                             <option value="{{ $type->id }}" @selected(request('assistance_type_id') == $type->id)>{{ $type->name }}</option>
                         @endforeach
                     </select>
-                    <select name="status" class="border rounded px-3 py-2">
-                        <option value="">All Status</option>
-                        <option value="Pending" @selected(request('status') == 'Pending')>Pending</option>
-                        <option value="Approved" @selected(request('status') == 'Approved')>Approved</option>
-                        <option value="Released" @selected(request('status') == 'Released')>Released</option>
-                        <option value="Completed" @selected(request('status') == 'Completed')>Completed</option>
+                    <select name="status" class="border rounded px-3 py-2" aria-label="Report status">
+                        <option value="Released" selected>Released assistance only</option>
                     </select>
                     <select name="eligibility_status" class="border rounded px-3 py-2">
                         <option value="">All Eligibility</option>

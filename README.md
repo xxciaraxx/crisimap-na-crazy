@@ -36,3 +36,15 @@ CRISIMAP is a GIS-based monitoring and mapping system for AICS beneficiary distr
 - Set `APP_ENV=production`
 - Set `APP_DEBUG=false`
 - Run `php artisan config:cache`, `php artisan route:cache`, and `php artisan view:cache`
+
+## Nominatim Geocoding
+
+Beneficiary address geocoding uses Geoapify when `GEOAPIFY_API_KEY` is set.
+The returned point is matched against the locally served Tagudin barangay
+boundaries before the beneficiary's barangay is updated. Leave the key empty
+to retain the Nominatim fallback.
+
+- Incident lookups go through the Laravel backend only, never directly from the browser.
+- Public Nominatim calls are throttled to a maximum of 1 request per second, even when several users submit reports at the same time.
+- Search and reverse-geocode responses are cached in the `geocode_cache` table so repeated lookups do not hit the public service again.
+- The base URL and user agent come from `NOMINATIM_BASE_URL` and `NOMINATIM_USER_AGENT`, so you can switch to a self-hosted Nominatim instance later by changing environment values only.

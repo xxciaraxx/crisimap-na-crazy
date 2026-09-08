@@ -11,6 +11,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\BeneficiaryImportController;
 use App\Http\Controllers\DocumentRecordController;
+use App\Http\Controllers\DataBackupController;
 use App\Http\Controllers\GeneralIntakeSheetController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProtectedFileController;
@@ -27,12 +28,20 @@ Route::middleware(['auth', 'setup.complete'])->group(function () {
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
 
     Route::get('/beneficiaries/duplicate-check', [BeneficiaryController::class, 'duplicateCheck'])->name('beneficiaries.duplicate-check');
+    Route::get('/intakes/applicant-history', [GeneralIntakeSheetController::class, 'applicantHistory'])->name('intakes.applicant-history');
     Route::get('/beneficiaries/import', [BeneficiaryImportController::class, 'create'])->name('beneficiaries.import.create');
     Route::post('/beneficiaries/import/preview', [BeneficiaryImportController::class, 'preview'])->name('beneficiaries.import.preview');
     Route::post('/beneficiaries/import', [BeneficiaryImportController::class, 'store'])->name('beneficiaries.import.store');
+    Route::get('/applications', [BeneficiaryController::class, 'index'])->name('applications.index');
+    Route::get('/beneficiary-records', [BeneficiaryController::class, 'index'])->name('beneficiary-records.index');
     Route::get('/verification/{referenceCode}', [BeneficiaryController::class, 'verify'])->name('beneficiaries.verify');
     Route::resource('case-records', CaseRecordController::class);
+    Route::get('/intakes/{intake}/print', [GeneralIntakeSheetController::class, 'print'])->name('intakes.print');
+    Route::get('/applications/intakes/{intake}/review', [GeneralIntakeSheetController::class, 'review'])->name('applications.intakes.review');
     Route::resource('intakes', GeneralIntakeSheetController::class)->except('destroy');
+    Route::post('/intakes/{intake}/submit', [GeneralIntakeSheetController::class, 'submit'])->name('intakes.submit');
+    Route::post('/intakes/{intake}/decide', [GeneralIntakeSheetController::class, 'decide'])->name('intakes.decide');
+    Route::post('/intakes/{intake}/head-decide', [GeneralIntakeSheetController::class, 'headDecide'])->name('intakes.head-decide');
     Route::get('/case-records/{caseRecord}/documents', [DocumentRecordController::class, 'index'])->name('case-records.documents.index');
     Route::get('/case-records/{caseRecord}/documents/{document}/edit', [DocumentRecordController::class, 'edit'])->name('case-records.documents.edit');
     Route::put('/case-records/{caseRecord}/documents/{document}', [DocumentRecordController::class, 'update'])->name('case-records.documents.update');
@@ -42,20 +51,27 @@ Route::middleware(['auth', 'setup.complete'])->group(function () {
     Route::post('/case-records/{caseRecord}/documents/{document}/finalize', [DocumentRecordController::class, 'finalize'])->name('case-records.documents.finalize');
     Route::get('/case-records/{caseRecord}/print', [CaseRecordController::class, 'print'])->name('case-records.print');
     Route::post('/case-records/{caseRecord}/decide', [CaseRecordController::class, 'decideEligibility'])->name('case-records.decide');
-    Route::resource('beneficiaries', BeneficiaryController::class);
+    Route::resource('beneficiaries', BeneficiaryController::class)->except(['create', 'store']);
     Route::get('/attachments/{attachment}/download', [ProtectedFileController::class, 'attachment'])->name('attachments.download');
     Route::get('/beneficiaries/{beneficiary}/decide', [BeneficiaryController::class, 'decisionRedirect'])->name('beneficiaries.decide.redirect');
     Route::post('/beneficiaries/{beneficiary}/decide', [BeneficiaryController::class, 'decide'])->name('beneficiaries.decide');
     Route::post('/beneficiaries/{beneficiary}/release', [BeneficiaryController::class, 'release'])->name('beneficiaries.release');
     Route::get('/beneficiaries/{beneficiary}/application-form', [BeneficiaryController::class, 'applicationForm'])->name('beneficiaries.application-form');
+    Route::get('/beneficiaries/{beneficiary}/application-form/edit', [BeneficiaryController::class, 'editApplicationForm'])->name('beneficiaries.application-form.edit');
+    Route::put('/beneficiaries/{beneficiary}/application-form', [BeneficiaryController::class, 'updateApplicationForm'])->name('beneficiaries.application-form.update');
     Route::get('/beneficiaries/{beneficiary}/certificate', [BeneficiaryController::class, 'certificate'])->name('beneficiaries.certificate');
     Route::get('/map', [MapController::class, 'index'])->name('map');
     Route::get('/map/data', [MapController::class, 'data'])->name('map.data');
     Route::get('/map/boundaries', [MapController::class, 'boundaries'])->name('map.boundaries');
+    require __DIR__.'/geocode.php';
 
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');
     Route::get('/reports/excel', [ReportController::class, 'excel'])->name('reports.excel');
+    Route::middleware('role:focal_person,admin,super_admin')->group(function () {
+        Route::get('/data-backup', [DataBackupController::class, 'index'])->name('data-backup.index');
+        Route::get('/data-backup/export', [DataBackupController::class, 'export'])->name('data-backup.export');
+    });
 
     Route::middleware('role:super_admin')->group(function () {
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');

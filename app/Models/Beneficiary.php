@@ -14,6 +14,7 @@ class Beneficiary extends Model
     protected $fillable = [
         'name',
         'case_record_id',
+        'general_intake_sheet_id',
         'age',
         'sex',
         'birth_date',
@@ -29,6 +30,7 @@ class Beneficiary extends Model
         'geocode_failed_at',
         'geocode_failure_reason',
         'case_info',
+        'final_aics_payload',
         'amount',
         'date_of_assistance',
         'status',
@@ -69,6 +71,7 @@ class Beneficiary extends Model
         'geocode_attempted_at' => 'datetime',
         'geocode_failed_at' => 'datetime',
         'amount' => 'decimal:2',
+        'final_aics_payload' => 'array',
     ];
 
     protected static function booted(): void
@@ -86,6 +89,11 @@ class Beneficiary extends Model
     public function caseRecord()
     {
         return $this->belongsTo(CaseRecord::class);
+    }
+
+    public function intake()
+    {
+        return $this->belongsTo(GeneralIntakeSheet::class, 'general_intake_sheet_id');
     }
 
     public function assistanceType()

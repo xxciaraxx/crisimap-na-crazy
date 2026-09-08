@@ -19,7 +19,7 @@ class MapController extends Controller
     private const CATEGORY_STYLES = [
         'medical' => ['color' => '#E53935', 'icon' => '✚'],
         'burial' => ['color' => '#424242', 'icon' => '✦'],
-        'food' => ['color' => '#43A047', 'icon' => '●'],
+        'food' => ['color' => '#43A047', 'icon' => '◉'],
         'education' => ['color' => '#1E88E5', 'icon' => '◆'],
         'educational' => ['color' => '#1E88E5', 'icon' => '◆'],
         'transportation' => ['color' => '#FB8C00', 'icon' => '➜'],
@@ -27,7 +27,7 @@ class MapController extends Controller
         'cash' => ['color' => '#8E24AA', 'icon' => '₱'],
         'livelihood' => ['color' => '#8E24AA', 'icon' => '₱'],
         'construction' => ['color' => '#FDB813', 'icon' => '■'],
-        'other' => ['color' => '#FDB813', 'icon' => '•'],
+        'other' => ['color' => '#00897B', 'icon' => '•'],
     ];
 
     public function index()
@@ -57,7 +57,7 @@ class MapController extends Controller
     public function data(Request $request): JsonResponse
     {
         $user = $request->user();
-        $canViewSensitiveDetails = $user->hasRole('focal_person', 'admin', 'super_admin');
+        $canViewSensitiveDetails = $user->hasRole('social_officer', 'focal_person', 'admin', 'super_admin');
         $query = Beneficiary::query()
             ->active()
             ->with([
@@ -71,19 +71,13 @@ class MapController extends Controller
             $query->whereIn('status', ['Approved', 'Released', 'Completed']);
         }
 
-        // Social officers can only receive markers for applications they submitted.
-        // The restrictions happen in the query, not merely in the popup UI.
-        if ($user->role === 'social_officer') {
-            $query->where('encoded_by', $user->id);
-        }
-
         if ($request->filled('barangay_id')) {
             $query->where('barangay_id', $request->integer('barangay_id'));
         }
         if ($request->filled('status')) {
             $query->where('status', $request->string('status')->toString());
         } elseif (! $historyView) {
-            $query->whereIn('status', ['Released', 'Completed']);
+            $query->whereIn('status', ['Approved', 'Released', 'Completed']);
         }
         if ($request->filled('search')) {
             $search = trim($request->string('search')->toString());

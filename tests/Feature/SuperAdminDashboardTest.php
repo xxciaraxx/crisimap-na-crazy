@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use App\Models\Beneficiary;
 
 class SuperAdminDashboardTest extends TestCase
 {
@@ -30,6 +31,24 @@ class SuperAdminDashboardTest extends TestCase
                 ->assertOk()
                 ->assertViewIs('dashboard');
         }
+    }
+
+    public function test_mswdo_head_dashboard_lists_pending_applications_for_review(): void
+    {
+        $administrator = User::factory()->create(['role' => 'admin']);
+        $pending = Beneficiary::create([
+            'name' => 'Pending Applicant',
+            'age' => 40,
+            'sex' => 'Female',
+            'status' => 'Pending',
+        ]);
+
+        $this->actingAs($administrator)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Applications awaiting approval')
+            ->assertSee($pending->name)
+            ->assertSee(route('beneficiaries.show', $pending), false);
     }
 
     public function test_dashboard_has_safe_empty_states(): void
