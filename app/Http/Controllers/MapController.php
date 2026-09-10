@@ -64,6 +64,7 @@ class MapController extends Controller
                 'barangay:id,name',
                 'assistanceType:id,name',
                 'encoder:id,name',
+                'intake:id,beneficiary_name',
             ]);
 
         $historyView = $request->input('view') === 'history';
@@ -99,12 +100,13 @@ class MapController extends Controller
         $beneficiaries = $query->whereNotNull('latitude')->whereNotNull('longitude')
             ->orderByDesc('date_of_assistance')->limit(5000)->get([
                 'id', 'name', 'reference_code', 'status', 'barangay_id', 'assistance_type_id', 'geocode_precision',
-                'latitude', 'longitude', 'amount', 'date_of_assistance', 'approved_at', 'encoded_by', 'rejection_reason',
+                'latitude', 'longitude', 'amount', 'date_of_assistance', 'approved_at', 'encoded_by', 'rejection_reason', 'general_intake_sheet_id',
             ]);
 
         return response()->json([
             'beneficiaries' => $beneficiaries->map(function (Beneficiary $beneficiary) use ($canViewSensitiveDetails) {
                 $locationIsExact = $beneficiary->geocode_precision === 'manual';
+                $registeredBeneficiaryName = $beneficiary->intake?->beneficiary_name ?: $beneficiary->name;
                 return [
                     'id' => $beneficiary->id,
                     // Social officers can monitor their cases without receiving
@@ -120,7 +122,8 @@ class MapController extends Controller
                     'category' => array_merge(['id' => $beneficiary->assistance_type_id ?? 'other', 'name' => $beneficiary->assistanceType?->name ?? 'Other / Miscellaneous'], $this->categoryStyle($beneficiary->assistanceType?->name)),
                     // Only authorized roles receive identifying application fields.
                     'details' => [
-                        'name' => $canViewSensitiveDetails ? $beneficiary->name : 'Protected beneficiary',
+                        'beneficiary' => $canViewSensitiveDetails ? $registeredBeneficiaryName : 'Protected beneficiary',
+                        'name' => $canViewSensitiveDetails ? $registeredBeneficiaryName : 'Protected beneficiary',
                         'reference_code' => $canViewSensitiveDetails ? $beneficiary->reference_code : null,
                         'amount' => $canViewSensitiveDetails ? $beneficiary->amount : null,
                         'social_officer' => $canViewSensitiveDetails ? $beneficiary->encoder?->name : null,

@@ -131,18 +131,24 @@ class GeneralIntakeSheetController extends Controller
     {
         $this->authorize('submit', $intake);
         $isFocalPerson = auth()->user()->role === 'focal_person';
+        $isFocalEligibilitySubmission = $isFocalPerson
+            && $intake->workflow_stage === 'eligibility_review';
         $intake->update([
-            'status' => $isFocalPerson ? 'approved' : 'submitted',
-            'workflow_stage' => $isFocalPerson ? 'head_approval' : 'eligibility_review',
+            'status' => $isFocalEligibilitySubmission ? 'submitted' : ($isFocalPerson ? 'approved' : 'submitted'),
+            'workflow_stage' => $isFocalEligibilitySubmission ? 'eligibility_review' : ($isFocalPerson ? 'head_approval' : 'eligibility_review'),
             'rejection_reason' => null,
             'rejected_by' => null,
             'rejected_at' => null,
         ]);
-        $this->recordSubmission($intake, $isFocalPerson);
+        if (! $isFocalEligibilitySubmission) {
+            $this->recordSubmission($intake, $isFocalPerson);
+        }
 
-        return redirect()->route('intakes.show', $intake)->with('success', $isFocalPerson
+        return redirect()->route('intakes.show', $intake)->with('success', $isFocalEligibilitySubmission
+            ? 'General Intake Sheet submitted to Applications for your eligibility approval.'
+            : ($isFocalPerson
             ? 'General Intake Sheet submitted to the MSWDO Head for approval.'
-            : 'General Intake Sheet submitted to the Focal Person for eligibility review.');
+            : 'General Intake Sheet submitted to the Focal Person for eligibility review.'));
     }
 
     private function recordSubmission(GeneralIntakeSheet $intake, bool $isFocalPerson): void

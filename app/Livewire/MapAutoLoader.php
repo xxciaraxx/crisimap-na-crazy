@@ -12,16 +12,17 @@ class MapAutoLoader extends Component
     public function load(array $filters = []): void
     {
         $user = auth()->user();
-        $query = Beneficiary::query()->active()->with(['barangay:id,name', 'assistanceType:id,name', 'encoder:id,name']);
+        $query = Beneficiary::query()->active()->with(['barangay:id,name', 'assistanceType:id,name', 'encoder:id,name', 'intake:id,beneficiary_name']);
         if ($user->role === 'social_officer') $query->where('encoded_by', $user->id);
         $query->when(filled($filters['barangay_id'] ?? null), fn ($q) => $q->where('barangay_id', $filters['barangay_id']))
             ->when(filled($filters['status'] ?? null), fn ($q) => $q->where('status', $filters['status']))
             ->when(filled($filters['search'] ?? null), fn ($q) => $q->where(fn ($inner) => $inner->where('name', 'like', '%'.trim($filters['search']).'%')->orWhere('reference_code', 'like', '%'.trim($filters['search']).'%')))
             ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('date_of_assistance', '>=', $filters['from']))
             ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('date_of_assistance', '<=', $filters['to']));
-        $records = $query->whereNotNull('latitude')->whereNotNull('longitude')->orderByDesc('date_of_assistance')->limit(5000)->get(['id','name','reference_code','status','barangay_id','assistance_type_id','latitude','longitude','amount','date_of_assistance','encoded_by'])->map(function (Beneficiary $b) {
+        $records = $query->whereNotNull('latitude')->whereNotNull('longitude')->orderByDesc('date_of_assistance')->limit(5000)->get(['id','name','reference_code','status','barangay_id','assistance_type_id','latitude','longitude','amount','date_of_assistance','encoded_by','general_intake_sheet_id'])->map(function (Beneficiary $b) {
             $style = $this->category($b->assistanceType?->name);
-            return ['id'=>$b->id,'latitude'=>$b->latitude,'longitude'=>$b->longitude,'status'=>$b->status,'date_availed'=>$b->date_of_assistance?->toDateString(),'barangay'=>$b->barangay?->name,'category'=>['id'=>$b->assistance_type_id ?? 'other','name'=>$b->assistanceType?->name ?? 'Other / Miscellaneous'] + $style,'details'=>['name'=>$b->name,'reference_code'=>$b->reference_code,'amount'=>$b->amount,'social_officer'=>$b->encoder?->name]];
+            $registeredBeneficiaryName = $b->intake?->beneficiary_name ?: $b->name;
+            return ['id'=>$b->id,'latitude'=>$b->latitude,'longitude'=>$b->longitude,'status'=>$b->status,'date_availed'=>$b->date_of_assistance?->toDateString(),'barangay'=>$b->barangay?->name,'category'=>['id'=>$b->assistance_type_id ?? 'other','name'=>$b->assistanceType?->name ?? 'Other / Miscellaneous'] + $style,'details'=>['beneficiary'=>$registeredBeneficiaryName,'name'=>$registeredBeneficiaryName,'reference_code'=>$b->reference_code,'amount'=>$b->amount,'social_officer'=>$b->encoder?->name]];
         })->values();
         $this->dispatch('map-records-updated', beneficiaries: $records->all());
     }

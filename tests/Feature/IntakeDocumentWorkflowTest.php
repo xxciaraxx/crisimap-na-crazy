@@ -145,6 +145,54 @@ class IntakeDocumentWorkflowTest extends TestCase
         $this->assertDatabaseMissing('beneficiaries', ['case_record_id' => $case->id]);
     }
 
+    public function test_focal_person_can_edit_a_submitted_intake_sheet(): void
+    {
+        $officer = User::factory()->create(['role' => 'social_officer', 'status' => 'approved']);
+        $focal = User::factory()->create(['role' => 'focal_person', 'status' => 'approved']);
+        $barangay = Barangay::firstOrCreate(['name' => 'Bitalag'], ['code' => 'bitalag']);
+
+        $this->actingAs($officer)->post(route('intakes.store'), [
+            'intake_date' => now()->toDateString(),
+            'program' => 'AICS',
+            'client_type' => 'new',
+            'client_name' => 'Edit Allowed Applicant',
+            'barangay_id' => $barangay->id,
+        ])->assertRedirect();
+
+        $intake = GeneralIntakeSheet::where('client_name', 'Edit Allowed Applicant')->firstOrFail();
+        $this->actingAs($officer)->post(route('intakes.submit', $intake))->assertRedirect(route('intakes.show', $intake));
+
+        $this->actingAs($focal)
+            ->get(route('intakes.edit', $intake))
+            ->assertOk()
+            ->assertSee('Update the official A4 intake form.');
+
+        $this->actingAs($focal)
+            ->from(route('intakes.edit', $intake))
+            ->put(route('intakes.update', $intake), [
+                'intake_date' => now()->toDateString(),
+                'program' => 'AICS',
+                'client_type' => 'returning',
+                'client_name' => 'Edited Focal Applicant',
+                'barangay_id' => $barangay->id,
+            ])
+            ->assertRedirect(route('intakes.show', $intake));
+
+        $this->assertDatabaseHas('general_intake_sheets', ['id' => $intake->id, 'client_name' => 'Edited Focal Applicant']);
+
+        $this->actingAs($focal)
+            ->post(route('intakes.submit', $intake))
+            ->assertRedirect(route('intakes.show', $intake));
+
+        $intake->refresh();
+        $this->assertSame('eligibility_review', $intake->workflow_stage);
+        $this->actingAs($focal)
+            ->get(route('applications.index'))
+            ->assertOk()
+            ->assertSee($intake->intake_number)
+            ->assertSee('Review full form');
+    }
+
     public function test_focal_person_can_approve_or_reject_a_submitted_intake_sheet(): void
     {
         $officer = User::factory()->create(['role' => 'social_officer', 'status' => 'approved']);
