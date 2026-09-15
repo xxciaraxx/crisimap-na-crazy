@@ -259,7 +259,9 @@ class BeneficiaryController extends Controller
             'caseRecord.householdMembers',
         ]);
 
-        return Pdf::loadView('beneficiaries.application-form', compact('beneficiary'))
+        $finalAicsPayload = $this->finalAicsPayloadFromIntake($beneficiary);
+
+        return Pdf::loadView('beneficiaries.application-form', compact('beneficiary', 'finalAicsPayload'))
             ->setPaper('a4', 'portrait')
             ->download('final-aics-form-'.$beneficiary->reference_code.'.pdf');
     }
@@ -276,7 +278,7 @@ class BeneficiaryController extends Controller
 
         return view('beneficiaries.application-form-edit', [
             'beneficiary' => $beneficiary,
-            'payload' => $beneficiary->final_aics_payload ?? [],
+            'payload' => $this->finalAicsPayloadFromIntake($beneficiary),
         ]);
     }
 
@@ -302,11 +304,48 @@ class BeneficiaryController extends Controller
             'witness_name' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $data['resettled'] = $request->boolean('resettled');
+        $data = array_merge($beneficiary->final_aics_payload ?? [], $data);
+        $data = array_merge($data, $this->finalAicsPayloadFromIntake($beneficiary));
         $beneficiary->forceFill(['final_aics_payload' => $data])->save();
 
         return redirect()->route('beneficiaries.application-form.edit', $beneficiary)
             ->with('success', 'Final AICS form draft saved. Review it, then print when ready.');
+    }
+
+    private function finalAicsPayloadFromIntake(Beneficiary $beneficiary): array
+    {
+        $intake = $beneficiary->intake;
+        if (! $intake && $beneficiary->relationLoaded('caseRecord')) {
+            $intake = $beneficiary->caseRecord?->intake;
+        }
+        if (! $intake) {
+            return $beneficiary->final_aics_payload ?? [];
+        }
+
+        $address = $intake->address ?: trim(implode(', ', array_filter([
+            $intake->barangay?->name,
+            'Tagudin',
+            'Ilocos Sur',
+        ])));
+        $clientName = $intake->client_name ?: $beneficiary->name;
+        $beneficiaryName = $intake->beneficiary_name ?: $clientName;
+        $assistance = $intake->purpose_of_assistance ?: $beneficiary->assistanceType?->name;
+        $amount = $intake->requested_amount ?? $beneficiary->amount;
+
+        return array_merge($beneficiary->final_aics_payload ?? [], [
+            'resettled' => false,
+            'disaster_victim' => 'ND',
+            'date_of_occurrence' => $intake->intake_date?->format('Y-m-d'),
+            'estimated_damage' => $intake->assistance_specification ?: $intake->diagnosis_or_cause_of_death,
+            'casualty_name' => $intake->beneficiary_name,
+            'client_signature_name' => $clientName,
+            'receipt_date' => $intake->intake_date?->format('Y-m-d'),
+            'receipt_amount' => $amount,
+            'receipt_purpose' => $assistance,
+            'payee_name' => $beneficiaryName,
+            'payee_address' => $address,
+            'witness_name' => $intake->interviewer_name,
+        ]);
     }
 
     public function certificate(Beneficiary $beneficiary)

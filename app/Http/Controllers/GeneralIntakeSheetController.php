@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\Attachment;
 use App\Models\AssistanceType;
 use App\Models\Barangay;
 use App\Models\GeneralIntakeSheet;
@@ -14,16 +15,45 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Storage;
 
 class GeneralIntakeSheetController extends Controller
 {
     public function index(Request $request)
     {
         $this->authorize('viewAny', GeneralIntakeSheet::class);
-        $intakes = GeneralIntakeSheet::query()->with(['barangay', 'encoder'])
-            ->when($request->user()->role === 'social_officer', fn ($query) => $query->where('encoded_by', $request->user()->id))
-            ->latest('intake_date')->latest()->paginate(20);
-        return view('intakes.index', compact('intakes'));
+        $tab = $request->string('tab')->toString() === 'submitted' ? 'submitted' : 'drafts';
+        $search = trim($request->string('search')->toString());
+        $sort = $request->string('sort')->toString();
+        $sort = in_array($sort, ['date', 'name', 'status'], true) ? $sort : 'date';
+        $direction = $request->string('direction')->toString() === 'asc' ? 'asc' : 'desc';
+        $baseQuery = GeneralIntakeSheet::query()
+            ->when($request->user()->role === 'social_officer', fn ($query) => $query->where('encoded_by', $request->user()->id));
+
+        $draftCount = (clone $baseQuery)->whereIn('status', ['draft', 'rejected'])->count();
+        $submittedCount = (clone $baseQuery)->whereNotIn('status', ['draft', 'rejected'])->count();
+        $intakes = $baseQuery->with(['barangay', 'encoder'])
+            ->when($tab === 'drafts', fn ($query) => $query->whereIn('status', ['draft', 'rejected']))
+            ->when($tab === 'submitted', fn ($query) => $query->whereNotIn('status', ['draft', 'rejected']))
+            ->when($search !== '', function ($query) use ($search) {
+                $term = '%'.mb_strtolower($search).'%';
+                $query->where(function ($query) use ($term) {
+                    $query->whereRaw('LOWER(client_name) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(intake_number) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(program) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(status) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(workflow_stage) LIKE ?', [$term]);
+                });
+            })
+            ->when($sort === 'date', fn ($query) => $query->orderBy('intake_date', $direction))
+            ->when($sort === 'name', fn ($query) => $query->orderByRaw("LOWER(client_name) {$direction}"))
+            ->when($sort === 'status', fn ($query) => $query
+                ->orderByRaw("LOWER(COALESCE(workflow_stage, status)) {$direction}")
+                ->orderByRaw("LOWER(status) {$direction}"))
+            ->orderBy('id', 'desc')
+            ->paginate(20)->withQueryString();
+
+        return view('intakes.index', compact('intakes', 'tab', 'draftCount', 'submittedCount', 'search', 'sort', 'direction'));
     }
 
     public function create()
@@ -110,10 +140,16 @@ class GeneralIntakeSheetController extends Controller
                 ? ($isFocalPerson ? 'head_approval' : 'eligibility_review')
                 : 'draft',
         ]);
+        $this->storeAttachments($request, $intake);
 
         if ($action === 'preview') {
             ActivityLog::create(['user_id' => $request->user()->id, 'action' => 'intake_created', 'description' => "Created General Intake Sheet {$intake->intake_number}", 'subject_type' => GeneralIntakeSheet::class, 'subject_id' => $intake->id]);
             return redirect()->route('intakes.print', $intake);
+        }
+
+        if ($action === 'review') {
+            ActivityLog::create(['user_id' => $request->user()->id, 'action' => 'intake_created', 'description' => "Created General Intake Sheet {$intake->intake_number}", 'subject_type' => GeneralIntakeSheet::class, 'subject_id' => $intake->id]);
+            return redirect()->route('intakes.review', $intake);
         }
 
         if ($isSubmitting) {
@@ -276,13 +312,14 @@ class GeneralIntakeSheetController extends Controller
     public function show(GeneralIntakeSheet $intake)
     {
         $this->authorize('view', $intake);
-        $intake->load(['barangay', 'encoder', 'rejectedBy', 'beneficiaries.assistanceType']);
+        $intake->load(['barangay', 'encoder', 'rejectedBy', 'beneficiaries.assistanceType', 'attachments']);
         return view('intakes.show', compact('intake'));
     }
 
     public function edit(GeneralIntakeSheet $intake)
     {
         $this->authorize('update', $intake);
+        $intake->load('attachments');
         return view('intakes.edit', ['intake' => $intake, 'barangays' => Barangay::orderBy('name')->get(), 'assistanceTypes' => AssistanceType::orderBy('name')->get()]);
     }
 
@@ -291,6 +328,18 @@ class GeneralIntakeSheetController extends Controller
         $this->authorize('view', $intake);
 
         return view('intakes.review', [
+            'intake' => $intake,
+            'barangays' => Barangay::orderBy('name')->get(),
+            'assistanceTypes' => AssistanceType::orderBy('name')->get(),
+        ]);
+    }
+
+    public function submissionReview(GeneralIntakeSheet $intake)
+    {
+        $this->authorize('submit', $intake);
+        $intake->load('attachments');
+
+        return view('intakes.submit-review', [
             'intake' => $intake,
             'barangays' => Barangay::orderBy('name')->get(),
             'assistanceTypes' => AssistanceType::orderBy('name')->get(),
@@ -310,6 +359,12 @@ class GeneralIntakeSheetController extends Controller
         }
 
         $intake->update($payload);
+        $this->storeAttachments($request, $intake);
+
+        if ($request->input('action') === 'review') {
+            return redirect()->route('intakes.review', $intake);
+        }
+
         return redirect()->route('intakes.show', $intake)->with('success', 'General Intake Sheet updated.');
     }
 
@@ -345,11 +400,30 @@ class GeneralIntakeSheetController extends Controller
             'seasonal_members_count' => ['nullable', 'integer', 'min:0'],
             'monthly_expenses' => ['nullable', 'numeric', 'min:0'],
             'supporting_documents' => ['nullable', 'array'], 'social_worker_assessment' => ['nullable', 'string'], 'interviewer_name' => ['nullable', 'string', 'max:255'], 'interviewer_position' => ['nullable', 'string', 'max:255'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'mimes:jpg,jpeg,png,pdf,doc,docx', 'max:5120'],
         ]);
 
         $payload['client_name'] = $this->normalizeClientName($payload['client_name']);
 
         return $payload;
+    }
+
+    private function storeAttachments(Request $request, GeneralIntakeSheet $intake): void
+    {
+        foreach ((array) $request->file('attachments', []) as $file) {
+            if (! $file) {
+                continue;
+            }
+
+            $path = $file->store('intake-attachments/'.$intake->id, 'sensitive');
+            $intake->attachments()->create([
+                'name' => $file->getClientOriginalName(),
+                'path' => $path,
+                'document_type' => $file->getClientOriginalExtension(),
+                'uploaded_by' => auth()->id(),
+            ]);
+        }
     }
 
     private function existingIntakeForClient(string $clientName, ?GeneralIntakeSheet $except = null): ?GeneralIntakeSheet

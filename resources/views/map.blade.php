@@ -1,12 +1,18 @@
 <x-app-layout>
     <x-slot name="header"><h2 class="font-semibold text-xl text-gray-800 leading-tight">Beneficiary GIS Map</h2></x-slot>
 
-    <div class="py-6"><div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+    <div class="map-page {{ $fullMap ? 'is-full-map' : '' }}"><div class="{{ $fullMap ? '' : 'py-6' }}"><div class="{{ $fullMap ? '' : 'max-w-7xl mx-auto sm:px-6 lg:px-8' }}">
         <section class="map-shell">
+            @unless($fullMap)
             <div class="map-toolbar">
                 <div class="map-title-block"><span class="map-title-icon" aria-hidden="true">&#9678;</span><div><p class="map-eyebrow">AICS geographic distribution</p><h3>Tagudin beneficiary map</h3><p id="map-status">Loading GIS layers&hellip;</p></div></div>
-                <div class="map-toolbar-actions"><div class="map-view-toggle"><button type="button" data-view="live" class="is-active">Live view</button><button type="button" data-view="history">History</button></div><button id="reset-map-view" class="map-control-button" type="button">Full map</button><button id="filter-toggle" class="map-control-button" type="button">Filters <span>&darr;</span></button></div>
+                <div class="map-toolbar-actions"><a href="{{ route('map', ['full' => 1]) }}" class="map-control-button">Full map</a></div>
             </div>
+            @else
+                <a href="{{ url()->previous() !== url()->current() ? url()->previous() : route('map') }}" class="map-return-button">&larr; Return</a>
+                <p id="map-status" class="sr-only">Loading GIS layers&hellip;</p>
+            @endunless
+            @unless($fullMap)
             <form id="filter-form" class="map-filters" hidden>
                 <label>Search<input name="search" placeholder="Name or case ID"></label>
                 <label>Barangay<select name="barangay_id"><option value="">All barangays</option>@foreach($barangays as $barangay)<option value="{{ $barangay->id }}">{{ $barangay->name }}</option>@endforeach</select></label>
@@ -15,11 +21,14 @@
                 <div class="period-filter"><label>Year<select id="period-year"><option value="">All years</option>@for($year = now()->year + 3; $year >= now()->year - 3; $year--)<option value="{{ $year }}">{{ $year }}</option>@endfor</select></label><div id="period-levels" hidden><label>Quarter<select id="period-quarter"><option value="">All year</option><option value="Q1">Q1 (Jan-Mar)</option><option value="Q2">Q2 (Apr-Jun)</option><option value="Q3">Q3 (Jul-Sep)</option><option value="Q4">Q4 (Oct-Dec)</option></select></label><label>Week<select id="period-week"><option value="">All selected period</option></select></label><label>Day<input id="period-day" type="date"></label><button id="period-reset" type="button">Reset period</button></div></div>
                 <button class="map-apply" type="submit">Apply filters</button>
             </form>
+            @else
+                <form id="filter-form" class="map-filters" hidden><input type="hidden" name="view" value="live"><input type="hidden" name="period" value=""></form>
+            @endunless
             <div class="map-stage"><div class="map-corner-label"><span>TAGUDIN, ILOCOS SUR</span><b>Beneficiary distribution</b></div><div id="map" aria-label="Interactive map of Tagudin beneficiaries"></div>
                 <aside class="map-legend" id="map-legend"><div class="legend-heading"><div><strong>Assistance type</strong><p class="legend-subtitle">Marker colors only. Barangays use light map fills.</p></div><button id="legend-toggle" type="button" aria-label="Collapse assistance legend" title="Collapse assistance legend" aria-expanded="true">−</button></div><div id="legend-items"></div><button id="boundary-toggle" class="boundary-toggle" type="button">Hide barangay labels</button></aside>
             </div>
         </section>
-    </div></div>
+    </div></div></div>
 
     <script>
     window.addEventListener('DOMContentLoaded', () => {
@@ -48,6 +57,7 @@
         const endpoint = @json(route('map.data'));
         const boundaryEndpoint = @json(asset('geo/tagudin_barangays.geojson'));
         const geoLayerBase = @json(asset('geo'));
+        const fullMap = @json($fullMap);
         const defaultCenter = [16.9301, 120.3604];
         const defaultZoom = 12;
         const form = document.getElementById('filter-form'), statusLine = document.getElementById('map-status');
@@ -156,7 +166,7 @@
                 style: feature => barangayStyle(feature),
                 onEachFeature: (feature, layer) => {
                     const name = feature.properties?.adm4_en || feature.properties?.name || 'Barangay';
-                    layer.bindTooltip(name, { className: 'barangay-label', permanent: true, direction: 'center', opacity: 0.85 });
+                    if (!fullMap) layer.bindTooltip(name, { className: 'barangay-label', permanent: true, direction: 'center', opacity: 0.85 });
                     layer.on('mouseover', () => {
                         applyBoundaryMask(feature);
                         boundaryLayer.eachLayer(other => {
@@ -192,19 +202,19 @@
             refreshBarangayStyles();
         });
         async function loadData() { statusLine.textContent = 'Updating map records…'; try { const response = await fetch(`${endpoint}?${new URLSearchParams(new FormData(form))}`, { headers: { Accept: 'application/json' } }); if (!response.ok) throw new Error('Map data request failed'); const payload = await response.json(); allRecords = payload.beneficiaries ?? []; drawRecords(); if (!recordsInitiallyFocused && allRecords.length) { const recordBounds = L.latLngBounds(allRecords.map(record => [record.latitude, record.longitude])); map.fitBounds(recordBounds.pad(allRecords.length === 1 ? 0.35 : 0.12), { maxZoom: 16 }); recordsInitiallyFocused = true; map.invalidateSize(true); } const missing = payload.summary?.missing_location_count ?? 0; if (missing) statusLine.textContent += ` ${missing} record(s) have no mapped location yet.`; } catch { statusLine.textContent = 'Unable to load map records. Please try again.'; } }
-        document.getElementById('filter-toggle').onclick = () => { form.hidden = !form.hidden; };
+        document.getElementById('filter-toggle')?.addEventListener('click', () => { form.hidden = !form.hidden; });
         document.querySelectorAll('[data-view]').forEach(button => button.onclick = () => { form.elements.view.value = button.dataset.view; document.querySelectorAll('[data-view]').forEach(item => item.classList.toggle('is-active', item === button)); document.querySelector('.map-corner-label b').textContent = button.dataset.view === 'history' ? 'Approved Beneficiary History' : 'Beneficiary distribution'; loadData(); });
         const yearSelect = document.getElementById('period-year'), quarterSelect = document.getElementById('period-quarter'), weekSelect = document.getElementById('period-week'), dayInput = document.getElementById('period-day');
         function setPeriod(value) { form.elements.period.value = value; form.elements.from.value = ''; form.elements.to.value = ''; loadData(); }
         function weeksForYear() { weekSelect.innerHTML = '<option value="">All selected period</option>'; for (let week = 1; week <= 53; week++) weekSelect.insertAdjacentHTML('beforeend', `<option value="${String(week).padStart(2, '0')}">Week ${week}</option>`); }
-        yearSelect.onchange = () => { document.getElementById('period-levels').hidden = !yearSelect.value; weeksForYear(); setPeriod(yearSelect.value); };
-        quarterSelect.onchange = () => setPeriod(quarterSelect.value ? `${yearSelect.value}-${quarterSelect.value}` : yearSelect.value);
-        weekSelect.onchange = () => { if (weekSelect.value) setPeriod(`${yearSelect.value}-W${weekSelect.value}`); };
-        dayInput.onchange = () => { if (dayInput.value) setPeriod(dayInput.value); };
-        document.getElementById('period-reset').onclick = () => { yearSelect.value = ''; quarterSelect.value = ''; weekSelect.value = ''; dayInput.value = ''; document.getElementById('period-levels').hidden = true; setPeriod(''); };
-        document.getElementById('reset-map-view').onclick = () => {
-            resetMapView();
-        };
+        if (yearSelect) {
+            yearSelect.onchange = () => { document.getElementById('period-levels').hidden = !yearSelect.value; weeksForYear(); setPeriod(yearSelect.value); };
+            quarterSelect.onchange = () => setPeriod(quarterSelect.value ? `${yearSelect.value}-${quarterSelect.value}` : yearSelect.value);
+            weekSelect.onchange = () => { if (weekSelect.value) setPeriod(`${yearSelect.value}-W${weekSelect.value}`); };
+            dayInput.onchange = () => { if (dayInput.value) setPeriod(dayInput.value); };
+        }
+        document.getElementById('period-reset')?.addEventListener('click', () => { yearSelect.value = ''; quarterSelect.value = ''; weekSelect.value = ''; dayInput.value = ''; document.getElementById('period-levels').hidden = true; setPeriod(''); });
+        document.getElementById('reset-map-view')?.addEventListener('click', resetMapView);
         document.getElementById('legend-toggle').onclick = event => { const legend = document.getElementById('map-legend'); legend.classList.toggle('is-collapsed'); const collapsed = legend.classList.contains('is-collapsed'); event.currentTarget.textContent = collapsed ? '+' : '−'; event.currentTarget.setAttribute('aria-expanded', String(!collapsed)); event.currentTarget.setAttribute('aria-label', collapsed ? 'Expand assistance legend' : 'Collapse assistance legend'); event.currentTarget.title = collapsed ? 'Expand assistance legend' : 'Collapse assistance legend'; };
         document.getElementById('boundary-toggle').onclick = event => { barangayLabelsShown = !barangayLabelsShown; boundaryLayer?.eachLayer(layer => barangayLabelsShown ? layer.openTooltip() : layer.closeTooltip()); event.currentTarget.textContent = barangayLabelsShown ? 'Hide barangay labels' : 'Show barangay labels'; };
         let filterTimer; form.addEventListener('input', () => { clearTimeout(filterTimer); filterTimer = setTimeout(loadData, 350); }); form.addEventListener('change', loadData); form.addEventListener('submit', event => { event.preventDefault(); loadData(); }); map.on('zoomend', drawRecords);
@@ -233,6 +243,7 @@
     .beneficiary-marker.is-history b{transform:rotate(45deg)!important}
     .legend-symbol{width:1.55rem!important;height:1.55rem!important;border-radius:50% 50% 50% 0!important;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 5px rgba(5,43,91,.3)}
     .legend-symbol::first-letter{display:inline-block;transform:rotate(45deg)}
+    .is-full-map{position:relative;width:100vw;height:100vh;background:#f7fbff}.is-full-map .map-shell{height:100vh;border:0;border-radius:0;box-shadow:none}.is-full-map .map-stage,.is-full-map .map-stage #map{height:100vh}.is-full-map .map-legend,.is-full-map .map-corner-label{display:none}.map-return-button{position:absolute;z-index:1000;top:1rem;left:1rem;display:inline-flex;align-items:center;gap:.35rem;border:1px solid #d8e5f2;border-radius:9px;padding:.65rem .9rem;color:#174b7b;background:#fffffff2;box-shadow:0 8px 20px rgba(7,61,130,.2);font-size:.8rem;font-weight:800;text-decoration:none;backdrop-filter:blur(7px)}.map-return-button:hover{color:#fff;background:#1565c0}.is-full-map .leaflet-top{top:1rem}.is-full-map .leaflet-top.leaflet-right{right:1rem}.is-full-map .leaflet-bottom{bottom:1rem}
     @media(max-width:700px){.map-toolbar{min-height:auto;padding:1.1rem}.map-title-icon,.map-live-indicator{display:none}.map-toolbar-actions{margin-left:auto}.map-stage{margin:.65rem;border-width:3px}.map-stage #map{height:590px}.map-corner-label{top:12px;left:12px}.map-legend{right:10px;bottom:12px}.map-filters{margin:0}.map-toolbar h3{font-size:1.1rem}}
     </style>
 </x-app-layout>

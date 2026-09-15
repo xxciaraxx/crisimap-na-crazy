@@ -89,7 +89,6 @@
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rejection Remarks</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
@@ -105,14 +104,21 @@
                                     <td class="px-4 py-3 text-sm">PHP {{ number_format((float) ($beneficiary->amount ?? 0), 2) }}</td>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->date_of_assistance?->format('M d, Y') }}</td>
                                     <td class="px-4 py-3"><x-status-badge :status="$beneficiary->status" title="{{ $isRejected ? ($beneficiary->rejection_reason ?? '') : '' }}" /></td>
-                                    <td class="px-4 py-3 text-sm text-red-700">{{ $isRejected ? ($beneficiary->rejection_reason ?? 'No remarks provided.') : '—' }}</td>
                                     <td class="px-4 py-3">
                                         <div class="flex min-w-[190px] flex-wrap gap-2 text-xs font-semibold">
                                         <a href="{{ route('beneficiaries.show', $beneficiary) }}" class="rounded-md bg-blue-50 px-2.5 py-1.5 text-blue-700 hover:bg-blue-100">View</a>
-                                        @can('update', $beneficiary)<a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="rounded-md bg-emerald-50 px-2.5 py-1.5 text-emerald-700 hover:bg-emerald-100">Edit</a>@endcan
+                                        @if(!auth()->user()->hasRole('social_officer'))
+                                            @can('update', $beneficiary)
+                                                <a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="rounded-md bg-emerald-50 px-2.5 py-1.5 text-emerald-700 hover:bg-emerald-100">Edit</a>
+                                            @endcan
+                                        @endif
                                         @if(in_array($beneficiary->status, ['Approved', 'Released', 'Completed'], true) && in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden', null], true))
-                                            @can('updateFinalAics', $beneficiary)<a href="{{ route('beneficiaries.application-form.edit', $beneficiary) }}" class="rounded-md bg-violet-50 px-2.5 py-1.5 text-violet-700 hover:bg-violet-100">Review AICS</a>@endcan
-                                            <a target="_blank" href="{{ route('beneficiaries.application-form', $beneficiary) }}" class="rounded-md bg-slate-100 px-2.5 py-1.5 text-slate-700 hover:bg-slate-200">Print</a>
+                                            @if(!auth()->user()->hasRole('social_officer'))
+                                                @can('updateFinalAics', $beneficiary)
+                                                    <a href="{{ route('beneficiaries.application-form.edit', $beneficiary) }}" class="rounded-md bg-violet-50 px-2.5 py-1.5 text-violet-700 hover:bg-violet-100">Review AICS</a>
+                                                @endcan
+                                                <a target="_blank" href="{{ route('beneficiaries.application-form', $beneficiary) }}" class="rounded-md bg-slate-100 px-2.5 py-1.5 text-slate-700 hover:bg-slate-200">Print</a>
+                                            @endif
                                         @endif
                                         @can('release', $beneficiary)
                                             <form method="POST" action="{{ route('beneficiaries.release', $beneficiary) }}" class="inline" onsubmit="return confirm('Confirm that the applicant received the assistance and release this record?');">
@@ -120,14 +126,14 @@
                                                 <button type="submit" class="rounded-md bg-emerald-50 px-2.5 py-1.5 text-emerald-700 hover:bg-emerald-100">Release</button>
                                             </form>
                                         @endcan
-                                        @if($beneficiary->reference_code)
+                                        @if($beneficiary->reference_code && !auth()->user()->hasRole('social_officer'))
                                             <a href="{{ route('beneficiaries.verify', $beneficiary->reference_code) }}" class="rounded-md bg-slate-100 px-2.5 py-1.5 text-slate-600 hover:bg-slate-200">Verify</a>
                                         @endif
                                         </div>
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="10" class="px-4 py-6 text-center text-gray-500">No beneficiaries found.</td></tr>
+                                <tr><td colspan="9" class="px-4 py-6 text-center text-gray-500">No beneficiaries found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -142,8 +148,19 @@
                             </div>
                             <dl class="mt-4 grid grid-cols-2 gap-3 text-sm"><div><dt class="text-xs text-slate-400">Amount</dt><dd class="font-semibold">PHP {{ number_format((float) ($beneficiary->amount ?? 0), 2) }}</dd></div><div><dt class="text-xs text-slate-400">Assistance date</dt><dd class="font-semibold">{{ $beneficiary->date_of_assistance?->format('M d, Y') ?? '—' }}</dd></div></dl>
                             @if($isRejected)<p class="mt-3 rounded-lg bg-red-50 p-2 text-xs text-red-700">{{ $beneficiary->rejection_reason ?? 'No remarks provided.' }}</p>@endif
-                            <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold"><a href="{{ route('beneficiaries.show', $beneficiary) }}" class="rounded-md bg-blue-50 px-3 py-2 text-blue-700">View</a>@can('update', $beneficiary)<a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="rounded-md bg-emerald-50 px-3 py-2 text-emerald-700">Edit</a>@endcan
-                                @if(in_array($beneficiary->status, ['Approved', 'Released', 'Completed'], true) && in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden', null], true))@can('updateFinalAics', $beneficiary)<a href="{{ route('beneficiaries.application-form.edit', $beneficiary) }}" class="rounded-md bg-violet-50 px-3 py-2 text-violet-700">Review AICS</a>@endcan<a target="_blank" href="{{ route('beneficiaries.application-form', $beneficiary) }}" class="rounded-md bg-slate-100 px-3 py-2 text-slate-700">Print</a>@endif
+                            <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+                                <a href="{{ route('beneficiaries.show', $beneficiary) }}" class="rounded-md bg-blue-50 px-3 py-2 text-blue-700">View</a>
+                                @if(!auth()->user()->hasRole('social_officer'))
+                                    @can('update', $beneficiary)
+                                        <a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="rounded-md bg-emerald-50 px-3 py-2 text-emerald-700">Edit</a>
+                                    @endcan
+                                    @if(in_array($beneficiary->status, ['Approved', 'Released', 'Completed'], true) && in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden', null], true))
+                                        @can('updateFinalAics', $beneficiary)
+                                            <a href="{{ route('beneficiaries.application-form.edit', $beneficiary) }}" class="rounded-md bg-violet-50 px-3 py-2 text-violet-700">Review AICS</a>
+                                        @endcan
+                                        <a target="_blank" href="{{ route('beneficiaries.application-form', $beneficiary) }}" class="rounded-md bg-slate-100 px-3 py-2 text-slate-700">Print</a>
+                                    @endif
+                                @endif
                             </div>
                         </article>
                     @empty

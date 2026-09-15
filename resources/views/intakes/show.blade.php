@@ -9,7 +9,7 @@
                 <div class="flex flex-wrap gap-2">
                     @can('update', $intake)<a class="inline-flex items-center bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800" href="{{ route('intakes.edit', $intake) }}">Edit Intake Form</a>@endcan
                     @can('view', $intake)<a class="inline-flex items-center border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="{{ route('intakes.print', $intake) }}" title="Open print preview">Print</a>@endcan
-                    @can('submit', $intake)<form method="POST" action="{{ route('intakes.submit', $intake) }}">@csrf<button class="inline-flex items-center bg-green-700 px-3 py-2 text-sm font-medium text-white hover:bg-green-800" type="submit">Submit for Review</button></form>@endcan
+                    @can('submit', $intake)<a class="inline-flex items-center bg-green-700 px-3 py-2 text-sm font-medium text-white hover:bg-green-800" href="{{ route('intakes.review', $intake) }}">Review &amp; submit</a>@endcan
                 </div>
             </div>
             <div class="grid gap-6 p-6 sm:grid-cols-2">
@@ -18,6 +18,20 @@
                 <div><dt class="text-xs font-semibold uppercase tracking-wide text-slate-400">Purpose</dt><dd class="mt-1 text-slate-700">{{ $intake->purpose_of_assistance ?: 'Not specified' }}@if($intake->assistance_specification) — {{ $intake->assistance_specification }}@endif</dd></div>
                 <div><dt class="text-xs font-semibold uppercase tracking-wide text-slate-400">Requested amount</dt><dd class="mt-1 text-slate-700">PHP {{ number_format((float) $intake->requested_amount, 2) }}</dd></div>
             </div>
+            @if($intake->attachments->isNotEmpty())
+                <div class="border-t border-slate-200 px-6 py-5">
+                    <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-600">Attached documents</h3>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        @foreach($intake->attachments as $attachment)
+                            <span class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                                <span class="max-w-xs truncate text-slate-700" title="{{ $attachment->name }}">{{ $attachment->name }}</span>
+                                <a href="{{ route('attachments.view', $attachment) }}" target="_blank" rel="noopener" class="rounded-md bg-blue-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-800">View attachment</a>
+                                <a href="{{ route('attachments.download', $attachment) }}" class="rounded-md bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-300">Download</a>
+                            </span>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
             @if($intake->beneficiaries->isNotEmpty())
                 <div class="flex flex-wrap items-center gap-3 border-t border-slate-200 px-6 py-4">
                     @foreach($intake->beneficiaries as $beneficiary)

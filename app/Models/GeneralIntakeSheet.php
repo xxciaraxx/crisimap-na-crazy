@@ -91,6 +91,7 @@ class GeneralIntakeSheet extends Model
     public function rejectedBy() { return $this->belongsTo(User::class, 'rejected_by'); }
     public function beneficiaries() { return $this->hasMany(Beneficiary::class); }
     public function documents() { return $this->hasMany(DocumentRecord::class); }
+    public function attachments() { return $this->hasMany(Attachment::class); }
 
     public function statusLabel(): string
     {

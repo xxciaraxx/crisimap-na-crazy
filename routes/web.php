@@ -37,6 +37,7 @@ Route::middleware(['auth', 'setup.complete'])->group(function () {
     Route::get('/verification/{referenceCode}', [BeneficiaryController::class, 'verify'])->name('beneficiaries.verify');
     Route::resource('case-records', CaseRecordController::class);
     Route::get('/intakes/{intake}/print', [GeneralIntakeSheetController::class, 'print'])->name('intakes.print');
+    Route::get('/intakes/{intake}/review', [GeneralIntakeSheetController::class, 'submissionReview'])->name('intakes.review');
     Route::get('/applications/intakes/{intake}/review', [GeneralIntakeSheetController::class, 'review'])->name('applications.intakes.review');
     Route::resource('intakes', GeneralIntakeSheetController::class)->except('destroy');
     Route::post('/intakes/{intake}/submit', [GeneralIntakeSheetController::class, 'submit'])->name('intakes.submit');
@@ -53,6 +54,7 @@ Route::middleware(['auth', 'setup.complete'])->group(function () {
     Route::post('/case-records/{caseRecord}/decide', [CaseRecordController::class, 'decideEligibility'])->name('case-records.decide');
     Route::resource('beneficiaries', BeneficiaryController::class)->except(['create', 'store']);
     Route::get('/attachments/{attachment}/download', [ProtectedFileController::class, 'attachment'])->name('attachments.download');
+    Route::get('/attachments/{attachment}/view', [ProtectedFileController::class, 'viewAttachment'])->name('attachments.view');
     Route::get('/beneficiaries/{beneficiary}/decide', [BeneficiaryController::class, 'decisionRedirect'])->name('beneficiaries.decide.redirect');
     Route::post('/beneficiaries/{beneficiary}/decide', [BeneficiaryController::class, 'decide'])->name('beneficiaries.decide');
     Route::post('/beneficiaries/{beneficiary}/release', [BeneficiaryController::class, 'release'])->name('beneficiaries.release');

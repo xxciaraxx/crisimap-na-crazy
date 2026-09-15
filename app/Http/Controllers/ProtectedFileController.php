@@ -8,17 +8,36 @@ use App\Models\CaseRecord;
 use App\Models\DocumentRecord;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProtectedFileController extends Controller
 {
     public function attachment(Request $request, Attachment $attachment): StreamedResponse
     {
-        $attachment->loadMissing('beneficiary');
-        $this->authorize('view', $attachment->beneficiary);
+        $attachment->loadMissing(['beneficiary', 'intake']);
+        $subject = $attachment->beneficiary ?? $attachment->intake;
+        abort_unless($subject, 404);
+        $this->authorize('view', $subject);
 
-        $this->log($request, 'attachment_downloaded', $attachment->beneficiary, 'Downloaded attachment '.$attachment->name);
+        $this->log($request, 'attachment_downloaded', $subject, 'Downloaded attachment '.$attachment->name);
         return $this->download($attachment->path, $attachment->name);
+    }
+
+    public function viewAttachment(Request $request, Attachment $attachment): Response
+    {
+        $attachment->loadMissing(['beneficiary', 'intake']);
+        $subject = $attachment->beneficiary ?? $attachment->intake;
+        abort_unless($subject, 404);
+        $this->authorize('view', $subject);
+        abort_unless(Storage::disk('sensitive')->exists($attachment->path), 404);
+
+        $this->log($request, 'attachment_viewed', $subject, 'Viewed attachment '.$attachment->name);
+
+        return response()->file(
+            Storage::disk('sensitive')->path($attachment->path),
+            ['Content-Disposition' => 'inline; filename="'.addslashes($attachment->name).'"']
+        );
     }
 
     public function documentSnapshot(Request $request, CaseRecord $caseRecord, DocumentRecord $document): StreamedResponse

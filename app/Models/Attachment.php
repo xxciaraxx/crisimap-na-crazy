@@ -9,11 +9,16 @@ class Attachment extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['beneficiary_id', 'path', 'name', 'document_type', 'uploaded_by'];
+    protected $fillable = ['beneficiary_id', 'general_intake_sheet_id', 'path', 'name', 'document_type', 'uploaded_by'];
 
     public function beneficiary()
     {
         return $this->belongsTo(Beneficiary::class);
+    }
+
+    public function intake()
+    {
+        return $this->belongsTo(GeneralIntakeSheet::class, 'general_intake_sheet_id');
     }
 
     public function uploader()

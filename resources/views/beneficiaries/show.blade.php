@@ -6,15 +6,17 @@
                 <p class="text-sm text-gray-500">Reference: {{ $beneficiary->reference_code ?? 'Pending generation' }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                @can('update', $beneficiary)<a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="bg-blue-600 text-white px-4 py-2 rounded">Edit</a>@endcan
-                @if(in_array($beneficiary->status, ['Approved', 'Released', 'Completed'], true) && in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden', null], true))
-                    @can('updateFinalAics', $beneficiary)<a href="{{ route('beneficiaries.application-form.edit', $beneficiary) }}" class="bg-blue-700 text-white px-4 py-2 rounded">Review / Edit Final AICS Form</a>@endcan
-                    <a target="_blank" href="{{ route('beneficiaries.application-form', $beneficiary) }}" class="bg-gray-700 text-white px-4 py-2 rounded">Print Final AICS Form</a>
-                @endif
-                @if($beneficiary->intake)
-                    <a target="_blank" href="{{ route('intakes.print', $beneficiary->intake) }}" class="bg-gray-800 text-white px-4 py-2 rounded">View Intake Form</a>
-                @elseif($beneficiary->reference_code)
-                    <a href="{{ route('beneficiaries.verify', $beneficiary->reference_code) }}" class="bg-gray-800 text-white px-4 py-2 rounded">View Record Verification</a>
+                @if(!auth()->user()->hasRole('social_officer'))
+                    @can('update', $beneficiary)<a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="bg-blue-600 text-white px-4 py-2 rounded">Edit</a>@endcan
+                    @if(in_array($beneficiary->status, ['Approved', 'Released', 'Completed'], true) && in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden', null], true))
+                        @can('updateFinalAics', $beneficiary)<a href="{{ route('beneficiaries.application-form.edit', $beneficiary) }}" class="bg-blue-700 text-white px-4 py-2 rounded">Review / Edit Final AICS Form</a>@endcan
+                        <a target="_blank" href="{{ route('beneficiaries.application-form', $beneficiary) }}" class="bg-gray-700 text-white px-4 py-2 rounded">Print Final AICS Form</a>
+                    @endif
+                    @if($beneficiary->intake)
+                        <a target="_blank" href="{{ route('intakes.print', $beneficiary->intake) }}" class="bg-gray-800 text-white px-4 py-2 rounded">View Intake Form</a>
+                    @elseif($beneficiary->reference_code)
+                        <a href="{{ route('beneficiaries.verify', $beneficiary->reference_code) }}" class="bg-gray-800 text-white px-4 py-2 rounded">View Record Verification</a>
+                    @endif
                 @endif
                 @can('delete', $beneficiary)<form action="{{ route('beneficiaries.destroy', $beneficiary) }}" method="POST" class="inline">
                     @csrf

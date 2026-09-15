@@ -30,7 +30,7 @@ class MapController extends Controller
         'other' => ['color' => '#00897B', 'icon' => '•'],
     ];
 
-    public function index()
+    public function index(Request $request)
     {
         $assistanceTypes = AssistanceType::orderBy('name')->get()->map(fn (AssistanceType $type) => array_merge([
             'id' => $type->id,
@@ -51,6 +51,7 @@ class MapController extends Controller
         return view('map', [
             'barangays' => Barangay::whereIn('code', TagudinBarangays::codes())->orderBy('name')->get(['id', 'name']),
             'assistanceTypes' => $assistanceTypes,
+            'fullMap' => $request->boolean('full'),
         ]);
     }
 
