@@ -69,4 +69,35 @@ class MapDataTest extends TestCase
             ->assertJsonPath('beneficiaries.0.details.beneficiary', 'Registered Beneficiary')
             ->assertJsonPath('beneficiaries.0.details.name', 'Registered Beneficiary');
     }
+
+    public function test_map_excludes_unassigned_and_other_assistance_types(): void
+    {
+        $officer = User::factory()->create(['role' => 'social_officer']);
+        $medical = AssistanceType::create(['name' => 'Medical']);
+        $other = AssistanceType::create(['name' => 'Other']);
+
+        foreach ([null, $other->id, $medical->id] as $assistanceTypeId) {
+            Beneficiary::create([
+                'name' => 'Map Applicant '.$assistanceTypeId,
+                'age' => 40,
+                'sex' => 'Female',
+                'assistance_type_id' => $assistanceTypeId,
+                'latitude' => 16.9301,
+                'longitude' => 120.3604,
+                'date_of_assistance' => now(),
+                'status' => 'Released',
+            ]);
+        }
+
+        $this->actingAs($officer)
+            ->getJson(route('map.data'))
+            ->assertOk()
+            ->assertJsonCount(1, 'beneficiaries')
+            ->assertJsonPath('beneficiaries.0.category.name', 'Medical');
+
+        $this->actingAs($officer)
+            ->get(route('map'))
+            ->assertOk()
+            ->assertDontSee('Other / Miscellaneous');
+    }
 }

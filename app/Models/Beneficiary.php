@@ -137,6 +137,11 @@ class Beneficiary extends Model
         return $query->whereNull('archived_at');
     }
 
+    public function scopeWithIncludedAssistanceType($query)
+    {
+        return $query->whereHas('assistanceType', fn ($typeQuery) => $typeQuery->included());
+    }
+
     public function scopeForIdentity($query, array $identity)
     {
         return $query->where(function ($builder) use ($identity) {

@@ -12,14 +12,12 @@
 
             <section class="dashboard-metrics" aria-label="Program summary">
                 <article class="dashboard-metric dashboard-metric-primary dashboard-metric-beneficiaries"><p>Total beneficiary records</p><strong>{{ number_format($totalBeneficiaries) }}</strong><div class="dashboard-metric-details"><span><b>{{ number_format($singleRecordBeneficiaries) }}</b> Single-record</span><span><b>{{ number_format($returningRecords) }}</b> Returning records</span></div></article>
-                <article class="dashboard-metric"><p>This month</p><strong>{{ number_format($thisMonth) }}</strong><span>New assistance records</span></article>
-                <article class="dashboard-metric"><p>Released</p><strong>{{ number_format($released) }}</strong><span>Completed assistance</span></article>
-                <article class="dashboard-metric"><p>Approved</p><strong>{{ number_format($approved) }}</strong><span>Awaiting release</span></article>
+                <article class="dashboard-metric dashboard-metric-month"><p>This month</p><strong>{{ number_format($thisMonth) }}</strong><span>New assistance records</span></article>
+                <article class="dashboard-metric dashboard-metric-released"><p>Released</p><strong>{{ number_format($released) }}</strong><span>Completed assistance</span></article>
                 @if(auth()->user()->role === 'admin')
-                    <article class="dashboard-metric"><p>Pending review</p><strong>{{ number_format($pending) }}</strong><span>Applications awaiting approval</span></article>
+                    <article class="dashboard-metric dashboard-metric-pending"><p>Pending review</p><strong>{{ number_format($pending) }}</strong><span>Applications awaiting approval</span></article>
                 @endif
-                <article class="dashboard-metric dashboard-metric-amount"><p>Average assistance</p><strong>&#8369;{{ number_format($averageAmount, 2) }}</strong><span>Per active record</span></article>
-                <article class="dashboard-metric"><p>Release rate</p><strong>{{ $releaseRate }}%</strong><span>Of active records</span></article>
+                <article class="dashboard-metric dashboard-metric-amount dashboard-metric-distributed"><p>Total amount distributed</p><strong>&#8369;{{ number_format($totalAmountDistributed, 2) }}</strong><span>Released assistance</span></article>
             </section>
 
             @if(auth()->user()->role === 'admin')
@@ -68,9 +66,6 @@
                             <p class="text-xs text-gray-500">{{ $forecast['label'] }}</p>
                         </div>
                         @if(count($growthTrend))<div class="h-72"><canvas id="monthly-trends-chart"></canvas></div>@else<p class="text-sm text-gray-500">No monthly trend data yet.</p>@endif
-                        <div class="mt-4 rounded-lg border border-dashed border-blue-300 bg-blue-50 p-4">
-                            <p class="text-sm text-blue-900">Estimated next month demand: <strong>{{ number_format($forecast['next_month_estimate'], 1) }}</strong> applications.</p>
-                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -132,7 +127,7 @@
 
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div class="bg-white shadow rounded-xl p-5">
-                    <h3 class="font-semibold text-lg mb-4">Recurring Beneficiaries</h3>
+                    <h3 class="font-semibold text-lg mb-4">Returning Beneficiaries</h3>
                     <div class="overflow-x-auto">
                         <table class="min-w-full text-sm">
                             <thead class="bg-gray-50">
@@ -150,7 +145,7 @@
                                         <td class="px-3 py-2">{{ \Illuminate\Support\Carbon::parse($row->last_assistance_date)->format('M d, Y') }}</td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="3" class="px-3 py-4 text-center text-gray-500">No recurring beneficiaries yet.</td></tr>
+                                    <tr><td colspan="3" class="px-3 py-4 text-center text-gray-500">No returning beneficiaries yet.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -186,7 +181,7 @@
         new Chart(document.getElementById('monthly-trends-chart'), {
             type: 'line',
             data: { labels: @json(collect($growthTrend)->pluck('month')), datasets: [{ label: 'Applications', data: @json(collect($growthTrend)->pluck('total')), borderColor: '#1565c0', backgroundColor: 'rgba(21, 101, 192, .14)', fill: true, tension: .28, pointRadius: 4 }] },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { tooltip: { callbacks: { afterLabel: context => `Forecast: {{ $forecast['next_month_estimate'] }} next month` } } } }
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
         });
     </script>
 @endif

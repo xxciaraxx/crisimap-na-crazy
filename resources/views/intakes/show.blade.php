@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header"><div><h2 class="text-xl font-semibold text-slate-900">General Intake Sheet {{ $intake->intake_number }}</h2><p class="text-sm text-slate-500">Applicant information for AICS assistance.</p></div></x-slot>
 
-    <div class="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+    <div class="mx-auto max-w-5xl px-4 py-8 sm:px-6" x-data="{ rejectOpen: false, rejectAction: '', rejectRole: '' }">
         @if(session('success'))<div class="mb-5 border border-green-200 bg-green-50 p-3 text-sm text-green-800">{{ session('success') }}</div>@endif
         <section class="border border-slate-200 bg-white shadow-sm">
             <div class="flex flex-col gap-4 border-b border-slate-200 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
@@ -54,12 +54,7 @@
                             <input type="hidden" name="decision" value="approved">
                             <button type="submit" class="inline-flex w-full items-center justify-center bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800">Approve Intake</button>
                         </form>
-                        <form method="POST" action="{{ route('intakes.decide', $intake) }}" class="flex-1 md:max-w-md">
-                            @csrf
-                            <input type="hidden" name="decision" value="rejected">
-                            <textarea name="rejection_reason" rows="2" maxlength="2000" required placeholder="Reason for rejection" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"></textarea>
-                            <button type="submit" class="mt-2 inline-flex w-full items-center justify-center bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Reject Intake</button>
-                        </form>
+                        <button type="button" class="flex-1 bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 md:max-w-md" @click="rejectAction = '{{ route('intakes.decide', $intake) }}'; rejectRole = 'Focal Person'; rejectOpen = true">Reject Intake</button>
                     </div>
                 </div>
             @endcan
@@ -73,12 +68,7 @@
                             <input type="hidden" name="decision" value="approved">
                             <button type="submit" class="inline-flex w-full items-center justify-center bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800">Approve Intake</button>
                         </form>
-                        <form method="POST" action="{{ route('intakes.head-decide', $intake) }}" class="flex-1 md:max-w-md">
-                            @csrf
-                            <input type="hidden" name="decision" value="rejected">
-                            <textarea name="rejection_reason" rows="2" maxlength="2000" required placeholder="Reason for rejection" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"></textarea>
-                            <button type="submit" class="mt-2 inline-flex w-full items-center justify-center bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Reject Intake</button>
-                        </form>
+                        <button type="button" class="flex-1 bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 md:max-w-md" @click="rejectAction = '{{ route('intakes.head-decide', $intake) }}'; rejectRole = 'MSWDO Head'; rejectOpen = true">Reject Intake</button>
                     </div>
                 </div>
             @endcan
@@ -90,5 +80,23 @@
                 </div>
             @endif
         </section>
+        <div x-cloak x-show="rejectOpen" x-transition.opacity class="fixed inset-0 z-50 grid place-items-center bg-slate-900/60 p-4" role="dialog" aria-modal="true" aria-labelledby="intake-reject-title" @keydown.escape.window="rejectOpen = false">
+            <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" @click.outside="rejectOpen = false">
+                <div class="mb-4 grid h-10 w-10 place-items-center rounded-full bg-red-100 font-bold text-red-700" aria-hidden="true">!</div>
+                <p class="text-xs font-bold uppercase tracking-[.16em] text-red-600">Rejection confirmation</p>
+                <h3 id="intake-reject-title" class="mt-1 text-lg font-semibold text-slate-900">Reject this application?</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-600">You are rejecting <strong>{{ $intake->intake_number }}</strong> as <strong x-text="rejectRole"></strong>. A reason is required.</p>
+                <form method="POST" :action="rejectAction" class="mt-4">
+                    @csrf
+                    <input type="hidden" name="decision" value="rejected">
+                    <label for="intake-rejection-reason" class="text-sm font-semibold text-slate-700">Reason for rejection</label>
+                    <textarea id="intake-rejection-reason" name="rejection_reason" rows="4" maxlength="2000" required placeholder="Explain why this application is being rejected" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"></textarea>
+                    <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button type="button" class="inline-flex justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="rejectOpen = false">Cancel</button>
+                        <button type="submit" class="inline-flex justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">Confirm rejection</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </x-app-layout>

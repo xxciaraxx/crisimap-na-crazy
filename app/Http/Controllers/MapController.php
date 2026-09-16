@@ -32,7 +32,10 @@ class MapController extends Controller
 
     public function index(Request $request)
     {
-        $assistanceTypes = AssistanceType::orderBy('name')->get()->map(fn (AssistanceType $type) => array_merge([
+        $assistanceTypes = AssistanceType::included()
+            ->orderBy('name')
+            ->get()
+            ->map(fn (AssistanceType $type) => array_merge([
             'id' => $type->id,
             'name' => $type->name,
         ], $this->categoryStyle($type->name)));
@@ -43,10 +46,6 @@ class MapController extends Controller
                 $assistanceTypes->push(array_merge(['id' => 'default-'.strtolower(str_replace(' ', '-', $name)), 'name' => $name], $this->categoryStyle($name)));
             }
         }
-
-        // A legacy record may not yet have an assistance type. Keep it visible
-        // under the same gold "Other" category rather than silently dropping it.
-        $assistanceTypes->push(array_merge(['id' => 'other', 'name' => 'Other / Miscellaneous'], self::CATEGORY_STYLES['other']));
 
         return view('map', [
             'barangays' => Barangay::whereIn('code', TagudinBarangays::codes())->orderBy('name')->get(['id', 'name']),
@@ -87,6 +86,7 @@ class MapController extends Controller
                 ->where('name', 'like', '%'.$search.'%')
                 ->orWhere('reference_code', 'like', '%'.$search.'%'));
         }
+        $query->withIncludedAssistanceType();
         [$from, $to] = $request->filled('from') || $request->filled('to')
             ? [$request->date('from'), $request->date('to')]
             : (DateRangeResolver::resolve($request->input('period')) ?? [null, null]);
@@ -120,7 +120,7 @@ class MapController extends Controller
                     'approved_at' => $beneficiary->approved_at?->toDateString(),
                     'rejection_reason' => $beneficiary->rejection_reason,
                     'barangay' => $beneficiary->barangay?->name,
-                    'category' => array_merge(['id' => $beneficiary->assistance_type_id ?? 'other', 'name' => $beneficiary->assistanceType?->name ?? 'Other / Miscellaneous'], $this->categoryStyle($beneficiary->assistanceType?->name)),
+                    'category' => array_merge(['id' => $beneficiary->assistance_type_id, 'name' => $beneficiary->assistanceType->name], $this->categoryStyle($beneficiary->assistanceType->name)),
                     // Only authorized roles receive identifying application fields.
                     'details' => [
                         'beneficiary' => $canViewSensitiveDetails ? $registeredBeneficiaryName : 'Protected beneficiary',

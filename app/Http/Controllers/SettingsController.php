@@ -16,7 +16,7 @@ class SettingsController extends Controller
     {
         return view('settings.index', [
             'barangays' => Barangay::orderBy('name')->get(),
-            'assistanceTypes' => AssistanceType::orderBy('name')->get(),
+            'assistanceTypes' => AssistanceType::included()->orderBy('name')->get(),
             'officialSettings' => OfficialSetting::values(),
         ]);
     }

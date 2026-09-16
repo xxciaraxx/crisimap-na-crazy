@@ -37,35 +37,80 @@
                     </div>
                 </div>
             @endif
-            <div class="bg-white shadow overflow-hidden sm:rounded-lg p-4">
-                <form method="GET" class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
-                    <input name="search" value="{{ request('search') }}" placeholder="Search name or code" class="border rounded px-3 py-2" />
-                    <select name="barangay_id" class="border rounded px-3 py-2">
-                        <option value="">All Barangays</option>
-                        @foreach($barangays as $barangay)
-                            <option value="{{ $barangay->id }}" @selected(request('barangay_id') == $barangay->id)>{{ $barangay->name }}</option>
-                        @endforeach
-                    </select>
-                    <select name="assistance_type_id" class="border rounded px-3 py-2">
-                        <option value="">All Assistance Types</option>
-                        @foreach($assistanceTypes as $type)
-                            <option value="{{ $type->id }}" @selected(request('assistance_type_id') == $type->id)>{{ $type->name }}</option>
-                        @endforeach
-                    </select>
-                    <select name="status" class="border rounded px-3 py-2">
-                        <option value="">All Status</option>
-                        <option value="Pending" @selected(request('status') == 'Pending')>Pending</option>
-                        <option value="Approved" @selected(request('status') == 'Approved')>Approved</option>
-                        <option value="Released" @selected(request('status') == 'Released')>Released</option>
-                        <option value="Completed" @selected(request('status') == 'Completed')>Completed</option>
-                        <option value="Rejected" @selected(request('status') == 'Rejected')>Rejected</option>
-                    </select>
-                    <input type="date" name="from" value="{{ request('from') }}" class="border rounded px-3 py-2" />
-                    <input type="date" name="to" value="{{ request('to') }}" class="border rounded px-3 py-2" />
-                    <button class="rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white shadow-sm hover:bg-blue-800">Apply filters</button>
-                    @if(request()->hasAny(['search', 'barangay_id', 'assistance_type_id', 'status', 'from', 'to']))
-                        <a href="{{ url()->current() }}" class="rounded-lg border border-slate-300 px-4 py-2 text-center text-slate-600 hover:bg-slate-50">Clear</a>
-                    @endif
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div class="border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-blue-50/60 px-5 py-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="rounded-lg bg-blue-100 p-2 text-blue-700">
+                                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h18M6 12h12m-8 7h4" /></svg>
+                                </span>
+                                <h3 class="text-base font-semibold text-slate-900">Filter records</h3>
+                            </div>
+                            <p class="mt-1 text-sm text-slate-500">Narrow the records by applicant, location, assistance, status, or date.</p>
+                        </div>
+                        @if(request()->hasAny(['search', 'barangay_id', 'assistance_type_id', 'status', 'from', 'to']))
+                            <a href="{{ url()->current() }}" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">Clear all</a>
+                        @endif
+                    </div>
+                </div>
+                <form method="GET" class="space-y-5 p-5">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        <div class="xl:col-span-1">
+                            <label for="beneficiary_search" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Search</label>
+                            <div class="relative">
+                                <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path stroke-linecap="round" d="m20 20-4-4" /></svg>
+                                <input id="beneficiary_search" name="search" value="{{ request('search') }}" placeholder="Name or reference code" class="w-full rounded-lg border-slate-300 py-2.5 pl-9 pr-3 text-sm shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500" />
+                            </div>
+                        </div>
+                        <div>
+                            <label for="beneficiary_barangay" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Barangay</label>
+                            <select id="beneficiary_barangay" name="barangay_id" class="w-full rounded-lg border-slate-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">All barangays</option>
+                                @foreach($barangays as $barangay)
+                                    <option value="{{ $barangay->id }}" @selected(request('barangay_id') == $barangay->id)>{{ $barangay->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label for="beneficiary_assistance" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Assistance type</label>
+                            <select id="beneficiary_assistance" name="assistance_type_id" class="w-full rounded-lg border-slate-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">All assistance types</option>
+                                @foreach($assistanceTypes as $type)
+                                    <option value="{{ $type->id }}" @selected(request('assistance_type_id') == $type->id)>{{ $type->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @if(request()->routeIs('applications.index'))
+                            <div>
+                                <label for="beneficiary_status" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Status</label>
+                                <select id="beneficiary_status" name="status" class="w-full rounded-lg border-slate-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="">All statuses</option>
+                                    <option value="Pending" @selected(request('status') == 'Pending')>Pending</option>
+                                    <option value="Approved" @selected(request('status') == 'Approved')>Approved</option>
+                                </select>
+                            </div>
+                        @endif
+                    </div>
+                    <fieldset class="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                        <legend class="px-2 text-xs font-bold uppercase tracking-wide text-slate-500">Date range</legend>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <label for="beneficiary_from" class="mb-1.5 block text-sm font-medium text-slate-600">From date</label>
+                                <input id="beneficiary_from" type="date" name="from" value="{{ request('from') }}" class="w-full rounded-lg border-slate-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                            </div>
+                            <div>
+                                <label for="beneficiary_to" class="mb-1.5 block text-sm font-medium text-slate-600">To date</label>
+                                <input id="beneficiary_to" type="date" name="to" value="{{ request('to') }}" class="w-full rounded-lg border-slate-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                            </div>
+                        </div>
+                    </fieldset>
+                    <div class="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+                        <button class="inline-flex items-center justify-center rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Apply filters</button>
+                        @if(request()->hasAny(['search', 'barangay_id', 'assistance_type_id', 'status', 'from', 'to']))
+                            <a href="{{ url()->current() }}" class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">Reset</a>
+                        @endif
+                    </div>
                 </form>
             </div>
 
@@ -83,11 +128,14 @@
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Records</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Availed Assistance</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Birth Date</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Barangay</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assistance</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Release Date</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                             </tr>
@@ -98,11 +146,14 @@
                                 <tr>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->reference_code ?? 'N/A' }}</td>
                                     <td class="px-4 py-3">{{ $beneficiary->name }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ $beneficiary->historyEntries->whereNull('archived_at')->count() }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ $beneficiary->historyEntries->whereNull('archived_at')->pluck('assistanceType.name')->filter()->unique()->implode(', ') ?: '—' }}</td>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->birth_date?->format('M d, Y') ?? '—' }}</td>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->barangay->name ?? '—' }}</td>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->assistanceType->name ?? '—' }}</td>
                                     <td class="px-4 py-3 text-sm">PHP {{ number_format((float) ($beneficiary->amount ?? 0), 2) }}</td>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->date_of_assistance?->format('M d, Y') }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ $beneficiary->released_at?->format('M d, Y') ?? '—' }}</td>
                                     <td class="px-4 py-3"><x-status-badge :status="$beneficiary->status" title="{{ $isRejected ? ($beneficiary->rejection_reason ?? '') : '' }}" /></td>
                                     <td class="px-4 py-3">
                                         <div class="flex min-w-[190px] flex-wrap gap-2 text-xs font-semibold">
@@ -112,28 +163,20 @@
                                                 <a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="rounded-md bg-emerald-50 px-2.5 py-1.5 text-emerald-700 hover:bg-emerald-100">Edit</a>
                                             @endcan
                                         @endif
-                                        @if(in_array($beneficiary->status, ['Approved', 'Released', 'Completed'], true) && in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden', null], true))
-                                            @if(!auth()->user()->hasRole('social_officer'))
-                                                @can('updateFinalAics', $beneficiary)
-                                                    <a href="{{ route('beneficiaries.application-form.edit', $beneficiary) }}" class="rounded-md bg-violet-50 px-2.5 py-1.5 text-violet-700 hover:bg-violet-100">Review AICS</a>
-                                                @endcan
-                                                <a target="_blank" href="{{ route('beneficiaries.application-form', $beneficiary) }}" class="rounded-md bg-slate-100 px-2.5 py-1.5 text-slate-700 hover:bg-slate-200">Print</a>
-                                            @endif
-                                        @endif
                                         @can('release', $beneficiary)
                                             <form method="POST" action="{{ route('beneficiaries.release', $beneficiary) }}" class="inline" onsubmit="return confirm('Confirm that the applicant received the assistance and release this record?');">
                                                 @csrf
                                                 <button type="submit" class="rounded-md bg-emerald-50 px-2.5 py-1.5 text-emerald-700 hover:bg-emerald-100">Release</button>
                                             </form>
                                         @endcan
-                                        @if($beneficiary->reference_code && !auth()->user()->hasRole('social_officer'))
+                                        @if($beneficiary->reference_code && !auth()->user()->hasRole('social_officer', 'focal_person'))
                                             <a href="{{ route('beneficiaries.verify', $beneficiary->reference_code) }}" class="rounded-md bg-slate-100 px-2.5 py-1.5 text-slate-600 hover:bg-slate-200">Verify</a>
                                         @endif
                                         </div>
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="9" class="px-4 py-6 text-center text-gray-500">No beneficiaries found.</td></tr>
+                                <tr><td colspan="12" class="px-4 py-6 text-center text-gray-500">No beneficiaries found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -146,7 +189,7 @@
                                 <div><p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ $beneficiary->reference_code ?? 'No reference' }}</p><h4 class="mt-1 font-semibold text-slate-900">{{ $beneficiary->name }}</h4><p class="text-sm text-slate-500">{{ $beneficiary->assistanceType->name ?? 'Assistance not specified' }} · {{ $beneficiary->barangay->name ?? 'Barangay not specified' }}</p></div>
                                 <x-status-badge :status="$beneficiary->status" />
                             </div>
-                            <dl class="mt-4 grid grid-cols-2 gap-3 text-sm"><div><dt class="text-xs text-slate-400">Amount</dt><dd class="font-semibold">PHP {{ number_format((float) ($beneficiary->amount ?? 0), 2) }}</dd></div><div><dt class="text-xs text-slate-400">Assistance date</dt><dd class="font-semibold">{{ $beneficiary->date_of_assistance?->format('M d, Y') ?? '—' }}</dd></div></dl>
+                            <dl class="mt-4 grid grid-cols-2 gap-3 text-sm"><div><dt class="text-xs text-slate-400">Records</dt><dd class="font-semibold">{{ $beneficiary->historyEntries->whereNull('archived_at')->count() }}</dd></div><div><dt class="text-xs text-slate-400">Availed assistance</dt><dd class="font-semibold">{{ $beneficiary->historyEntries->whereNull('archived_at')->pluck('assistanceType.name')->filter()->unique()->implode(', ') ?: '—' }}</dd></div><div><dt class="text-xs text-slate-400">Amount</dt><dd class="font-semibold">PHP {{ number_format((float) ($beneficiary->amount ?? 0), 2) }}</dd></div><div><dt class="text-xs text-slate-400">Assistance date</dt><dd class="font-semibold">{{ $beneficiary->date_of_assistance?->format('M d, Y') ?? '—' }}</dd></div><div><dt class="text-xs text-slate-400">Release date</dt><dd class="font-semibold">{{ $beneficiary->released_at?->format('M d, Y') ?? '—' }}</dd></div></dl>
                             @if($isRejected)<p class="mt-3 rounded-lg bg-red-50 p-2 text-xs text-red-700">{{ $beneficiary->rejection_reason ?? 'No remarks provided.' }}</p>@endif
                             <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
                                 <a href="{{ route('beneficiaries.show', $beneficiary) }}" class="rounded-md bg-blue-50 px-3 py-2 text-blue-700">View</a>
@@ -154,12 +197,6 @@
                                     @can('update', $beneficiary)
                                         <a href="{{ route('beneficiaries.edit', $beneficiary) }}" class="rounded-md bg-emerald-50 px-3 py-2 text-emerald-700">Edit</a>
                                     @endcan
-                                    @if(in_array($beneficiary->status, ['Approved', 'Released', 'Completed'], true) && in_array($beneficiary->eligibility_status, ['Eligible', 'Overridden', null], true))
-                                        @can('updateFinalAics', $beneficiary)
-                                            <a href="{{ route('beneficiaries.application-form.edit', $beneficiary) }}" class="rounded-md bg-violet-50 px-3 py-2 text-violet-700">Review AICS</a>
-                                        @endcan
-                                        <a target="_blank" href="{{ route('beneficiaries.application-form', $beneficiary) }}" class="rounded-md bg-slate-100 px-3 py-2 text-slate-700">Print</a>
-                                    @endif
                                 @endif
                             </div>
                         </article>

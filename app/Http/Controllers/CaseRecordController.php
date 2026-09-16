@@ -23,17 +23,14 @@ class CaseRecordController extends Controller
         $this->authorize('viewAny', CaseRecord::class);
         $records = CaseRecord::query()
             ->with(['barangay', 'encoder'])
+            ->when($request->user()->role === 'social_officer', fn ($query) => $query->where('encoded_by', $request->user()->id))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->string('search')->toString());
                 $query->where(fn ($q) => $q->where('case_number', 'like', "%{$search}%")
                     ->orWhere('client_name', 'like', "%{$search}%"));
             })
             ->when($request->filled('barangay_id'), fn ($query) => $query->where('barangay_id', $request->integer('barangay_id')))
-            ->latest('date_of_entry')->latest()->paginate(20)->withQueryString();
-
-        if ($request->user()->role === 'social_officer') {
-            $records = CaseRecord::query()->with(['barangay', 'encoder'])->where('encoded_by', $request->user()->id)->latest('date_of_entry')->latest()->paginate(20)->withQueryString();
-        }
+            ->latest('date_of_entry')->latest()->paginate(10)->withQueryString();
 
         return view('case-records.index', ['records' => $records, 'barangays' => Barangay::orderBy('name')->get()]);
     }
@@ -64,7 +61,7 @@ class CaseRecordController extends Controller
 
         return view('case-records.show', [
             'caseRecord' => $caseRecord,
-            'assistanceTypes' => AssistanceType::orderBy('name')->get(),
+            'assistanceTypes' => AssistanceType::included()->orderBy('name')->get(),
         ]);
     }
 

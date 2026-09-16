@@ -41,15 +41,15 @@ class BeneficiaryController extends Controller
             $statusScope = ['Pending', 'Approved'];
         } elseif ($request->routeIs('beneficiary-records.index')) {
             $request->merge(['status' => null]);
-            $statusScope = ['Released', 'Rejected'];
+            $statusScope = ['Released'];
         }
 
         $query = $this->filteredQuery($request, $statusScope)
-            ->with(['barangay', 'assistanceType', 'encoder', 'overrideUser', 'rejectedBy'])
+            ->with(['barangay', 'assistanceType', 'encoder', 'overrideUser', 'rejectedBy', 'historyEntries.assistanceType'])
             ->orderByDesc('date_of_assistance')
             ->orderByDesc('created_at');
 
-        $beneficiaries = $query->paginate(20)->withQueryString();
+        $beneficiaries = $query->paginate(10)->withQueryString();
         $pendingIntakes = collect();
         if ($request->routeIs('applications.index') && in_array($request->user()->role, ['focal_person', 'admin', 'super_admin'], true)) {
             $pendingIntakes = GeneralIntakeSheet::query()
@@ -63,11 +63,11 @@ class BeneficiaryController extends Controller
         return view('beneficiaries.index', [
             'beneficiaries' => $beneficiaries,
             'barangays' => Barangay::orderBy('name')->get(),
-            'assistanceTypes' => AssistanceType::orderBy('name')->get(),
-            'pageTitle' => $request->routeIs('applications.index') ? 'Applications' : 'Beneficiary Records',
+            'assistanceTypes' => AssistanceType::included()->orderBy('name')->get(),
+            'pageTitle' => $request->routeIs('applications.index') ? 'Assistance Applications' : 'Beneficiary Records',
             'pageDescription' => $request->routeIs('applications.index')
                 ? 'Applications awaiting approval or fund release.'
-                : 'Released and rejected assistance records for new and returning applicants.',
+                : 'Released assistance records for new and returning applicants.',
             'pendingIntakes' => $pendingIntakes,
         ]);
     }
@@ -92,7 +92,7 @@ class BeneficiaryController extends Controller
             'beneficiary' => $beneficiary,
             'barangays' => $barangays,
             'mapCentroids' => $this->mapCentroids($barangays),
-            'assistanceTypes' => AssistanceType::orderBy('name')->get(),
+            'assistanceTypes' => AssistanceType::included()->orderBy('name')->get(),
             'canOverrideEligibility' => $this->canOverrideEligibility(),
         ]);
     }
@@ -627,7 +627,7 @@ class BeneficiaryController extends Controller
 
     private function filteredQuery(Request $request, ?array $statusScope = null): Builder
     {
-        $query = Beneficiary::query()->active();
+        $query = Beneficiary::query()->active()->withIncludedAssistanceType();
 
         if ($statusScope !== null) {
             $query->whereIn('status', $statusScope);

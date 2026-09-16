@@ -51,7 +51,7 @@ class GeneralIntakeSheetController extends Controller
                 ->orderByRaw("LOWER(COALESCE(workflow_stage, status)) {$direction}")
                 ->orderByRaw("LOWER(status) {$direction}"))
             ->orderBy('id', 'desc')
-            ->paginate(20)->withQueryString();
+            ->paginate(10)->withQueryString();
 
         return view('intakes.index', compact('intakes', 'tab', 'draftCount', 'submittedCount', 'search', 'sort', 'direction'));
     }
@@ -59,7 +59,7 @@ class GeneralIntakeSheetController extends Controller
     public function create()
     {
         $this->authorize('create', GeneralIntakeSheet::class);
-        return view('intakes.create', ['barangays' => Barangay::orderBy('name')->get(), 'assistanceTypes' => AssistanceType::orderBy('name')->get()]);
+        return view('intakes.create', ['barangays' => Barangay::orderBy('name')->get(), 'assistanceTypes' => AssistanceType::included()->orderBy('name')->get()]);
     }
 
     public function applicantHistory(Request $request): JsonResponse
@@ -320,7 +320,7 @@ class GeneralIntakeSheetController extends Controller
     {
         $this->authorize('update', $intake);
         $intake->load('attachments');
-        return view('intakes.edit', ['intake' => $intake, 'barangays' => Barangay::orderBy('name')->get(), 'assistanceTypes' => AssistanceType::orderBy('name')->get()]);
+        return view('intakes.edit', ['intake' => $intake, 'barangays' => Barangay::orderBy('name')->get(), 'assistanceTypes' => AssistanceType::included()->orderBy('name')->get()]);
     }
 
     public function review(GeneralIntakeSheet $intake)
@@ -330,7 +330,7 @@ class GeneralIntakeSheetController extends Controller
         return view('intakes.review', [
             'intake' => $intake,
             'barangays' => Barangay::orderBy('name')->get(),
-            'assistanceTypes' => AssistanceType::orderBy('name')->get(),
+            'assistanceTypes' => AssistanceType::included()->orderBy('name')->get(),
         ]);
     }
 
@@ -342,7 +342,7 @@ class GeneralIntakeSheetController extends Controller
         return view('intakes.submit-review', [
             'intake' => $intake,
             'barangays' => Barangay::orderBy('name')->get(),
-            'assistanceTypes' => AssistanceType::orderBy('name')->get(),
+            'assistanceTypes' => AssistanceType::included()->orderBy('name')->get(),
         ]);
     }
 
