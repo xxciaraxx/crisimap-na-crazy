@@ -19,7 +19,7 @@ class MapController extends Controller
     private const CATEGORY_STYLES = [
         'medical' => ['color' => '#E53935', 'icon' => '✚'],
         'burial' => ['color' => '#424242', 'icon' => '✦'],
-        'food' => ['color' => '#43A047', 'icon' => '●'],
+        'food' => ['color' => '#43A047', 'icon' => '◉'],
         'education' => ['color' => '#1E88E5', 'icon' => '◆'],
         'educational' => ['color' => '#1E88E5', 'icon' => '◆'],
         'transportation' => ['color' => '#FB8C00', 'icon' => '➜'],
@@ -27,15 +27,18 @@ class MapController extends Controller
         'cash' => ['color' => '#8E24AA', 'icon' => '₱'],
         'livelihood' => ['color' => '#8E24AA', 'icon' => '₱'],
         'construction' => ['color' => '#FDB813', 'icon' => '■'],
-        'other' => ['color' => '#FDB813', 'icon' => '•'],
+        'other' => ['color' => '#00897B', 'icon' => '•'],
     ];
 
-    public function index()
+    public function index(Request $request)
     {
-        $assistanceTypes = AssistanceType::orderBy('name')->get()->map(fn (AssistanceType $type) => array_merge([
+        $assistanceTypes = AssistanceType::included()
+            ->orderBy('name')
+            ->get()
+            ->map(fn (AssistanceType $type) => array_merge([
             'id' => $type->id,
             'name' => $type->name,
-        ], $this->categoryStyle($type->name)));
+        ], $this->categoryStyle($type->name, $type->color)));
 
         $knownNames = $assistanceTypes->pluck('name')->map(fn (string $name) => strtolower($name));
         foreach (self::DEFAULT_ASSISTANCE_TYPES as $name) {
@@ -44,37 +47,29 @@ class MapController extends Controller
             }
         }
 
-        // A legacy record may not yet have an assistance type. Keep it visible
-        // under the same gold "Other" category rather than silently dropping it.
-        $assistanceTypes->push(array_merge(['id' => 'other', 'name' => 'Other / Miscellaneous'], self::CATEGORY_STYLES['other']));
-
         return view('map', [
             'barangays' => Barangay::whereIn('code', TagudinBarangays::codes())->orderBy('name')->get(['id', 'name']),
             'assistanceTypes' => $assistanceTypes,
+            'fullMap' => $request->boolean('full'),
         ]);
     }
 
     public function data(Request $request): JsonResponse
     {
         $user = $request->user();
-        $canViewSensitiveDetails = $user->hasRole('focal_person', 'admin', 'super_admin');
+        $canViewSensitiveDetails = $user->hasRole('social_officer', 'focal_person', 'admin', 'super_admin');
         $query = Beneficiary::query()
             ->active()
             ->with([
                 'barangay:id,name',
-                'assistanceType:id,name',
+                'assistanceType:id,name,color',
                 'encoder:id,name',
+                'intake:id,beneficiary_name',
             ]);
 
         $historyView = $request->input('view') === 'history';
         if ($historyView) {
             $query->whereIn('status', ['Approved', 'Released', 'Completed']);
-        }
-
-        // Social officers can only receive markers for applications they submitted.
-        // The restrictions happen in the query, not merely in the popup UI.
-        if ($user->role === 'social_officer') {
-            $query->where('encoded_by', $user->id);
         }
 
         if ($request->filled('barangay_id')) {
@@ -83,7 +78,7 @@ class MapController extends Controller
         if ($request->filled('status')) {
             $query->where('status', $request->string('status')->toString());
         } elseif (! $historyView) {
-            $query->whereIn('status', ['Released', 'Completed']);
+            $query->whereIn('status', ['Approved', 'Released', 'Completed']);
         }
         if ($request->filled('search')) {
             $search = trim($request->string('search')->toString());
@@ -91,6 +86,7 @@ class MapController extends Controller
                 ->where('name', 'like', '%'.$search.'%')
                 ->orWhere('reference_code', 'like', '%'.$search.'%'));
         }
+        $query->withIncludedAssistanceType();
         [$from, $to] = $request->filled('from') || $request->filled('to')
             ? [$request->date('from'), $request->date('to')]
             : (DateRangeResolver::resolve($request->input('period')) ?? [null, null]);
@@ -105,12 +101,13 @@ class MapController extends Controller
         $beneficiaries = $query->whereNotNull('latitude')->whereNotNull('longitude')
             ->orderByDesc('date_of_assistance')->limit(5000)->get([
                 'id', 'name', 'reference_code', 'status', 'barangay_id', 'assistance_type_id', 'geocode_precision',
-                'latitude', 'longitude', 'amount', 'date_of_assistance', 'approved_at', 'encoded_by', 'rejection_reason',
+                'latitude', 'longitude', 'amount', 'date_of_assistance', 'approved_at', 'encoded_by', 'rejection_reason', 'general_intake_sheet_id',
             ]);
 
         return response()->json([
             'beneficiaries' => $beneficiaries->map(function (Beneficiary $beneficiary) use ($canViewSensitiveDetails) {
                 $locationIsExact = $beneficiary->geocode_precision === 'manual';
+                $registeredBeneficiaryName = $beneficiary->intake?->beneficiary_name ?: $beneficiary->name;
                 return [
                     'id' => $beneficiary->id,
                     // Social officers can monitor their cases without receiving
@@ -123,10 +120,11 @@ class MapController extends Controller
                     'approved_at' => $beneficiary->approved_at?->toDateString(),
                     'rejection_reason' => $beneficiary->rejection_reason,
                     'barangay' => $beneficiary->barangay?->name,
-                    'category' => array_merge(['id' => $beneficiary->assistance_type_id ?? 'other', 'name' => $beneficiary->assistanceType?->name ?? 'Other / Miscellaneous'], $this->categoryStyle($beneficiary->assistanceType?->name)),
+                    'category' => array_merge(['id' => $beneficiary->assistance_type_id, 'name' => $beneficiary->assistanceType->name], $this->categoryStyle($beneficiary->assistanceType->name, $beneficiary->assistanceType->color)),
                     // Only authorized roles receive identifying application fields.
                     'details' => [
-                        'name' => $canViewSensitiveDetails ? $beneficiary->name : 'Protected beneficiary',
+                        'beneficiary' => $canViewSensitiveDetails ? $registeredBeneficiaryName : 'Protected beneficiary',
+                        'name' => $canViewSensitiveDetails ? $registeredBeneficiaryName : 'Protected beneficiary',
                         'reference_code' => $canViewSensitiveDetails ? $beneficiary->reference_code : null,
                         'amount' => $canViewSensitiveDetails ? $beneficiary->amount : null,
                         'social_officer' => $canViewSensitiveDetails ? $beneficiary->encoder?->name : null,
@@ -148,15 +146,15 @@ class MapController extends Controller
         return response()->json(['type' => 'FeatureCollection', 'features' => []]);
     }
 
-    private function categoryStyle(?string $name): array
+    private function categoryStyle(?string $name, ?string $color = null): array
     {
         $normalised = strtolower((string) $name);
         foreach (self::CATEGORY_STYLES as $keyword => $style) {
             if (str_contains($normalised, $keyword)) {
-                return $style;
+                return ['color' => $color ?: $style['color'], 'icon' => $style['icon']];
             }
         }
 
-        return self::CATEGORY_STYLES['other'];
+        return ['color' => $color ?: self::CATEGORY_STYLES['other']['color'], 'icon' => self::CATEGORY_STYLES['other']['icon']];
     }
 }

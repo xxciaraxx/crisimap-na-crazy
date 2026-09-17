@@ -11,6 +11,15 @@ class AssistanceType extends Model
 
     protected $fillable = ['name', 'color', 'description'];
 
+    public function scopeIncluded($query)
+    {
+        return $query->whereRaw("LOWER(TRIM(name)) NOT IN (?, ?, ?)", [
+            'other',
+            'others',
+            'other / miscellaneous',
+        ]);
+    }
+
     public function beneficiaries()
     {
         return $this->hasMany(Beneficiary::class);

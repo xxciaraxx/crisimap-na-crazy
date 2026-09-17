@@ -14,8 +14,7 @@ class ActivityLogController extends Controller
             ->when($request->filled('user_id'), fn ($query) => $query->where('user_id', $request->integer('user_id')))
             ->when($request->filled('subject_type'), fn ($query) => $query->where('subject_type', $request->string('subject_type')->toString()))
             ->when($request->filled('from'), fn ($query) => $query->whereDate('created_at', '>=', $request->date('from')))
-            ->when($request->filled('to'), fn ($query) => $query->whereDate('created_at', '<=', $request->date('to')))
-            ->latest()->paginate(25)->withQueryString();
+            ->when($request->filled('to'), fn ($query) => $query->whereDate('created_at', '<=', $request->date('to')))            ->latest()->paginate(10)->withQueryString();
 
         return view('activity-logs.index', [
             'logs' => $logs,

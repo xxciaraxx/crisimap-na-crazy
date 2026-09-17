@@ -65,7 +65,7 @@ class WorkflowImprovementTest extends TestCase
             ->assertOk()->assertJsonCount(1, 'beneficiaries')->assertJsonPath('beneficiaries.0.status', 'Approved');
     }
 
-    public function test_default_map_only_returns_released_beneficiaries(): void
+    public function test_default_map_returns_approved_and_released_beneficiaries(): void
     {
         $user = User::factory()->create(['role' => 'focal_person']);
         $barangay = Barangay::firstOrCreate(['name' => 'Bitalag']);
@@ -75,6 +75,25 @@ class WorkflowImprovementTest extends TestCase
         }
 
         $this->actingAs($user)->getJson(route('map.data'))
-            ->assertOk()->assertJsonCount(1, 'beneficiaries')->assertJsonPath('beneficiaries.0.status', 'Released');
+            ->assertOk()->assertJsonCount(2, 'beneficiaries');
+    }
+
+    public function test_application_and_beneficiary_record_pages_use_their_workflow_statuses(): void
+    {
+        $user = User::factory()->create(['role' => 'social_officer']);
+        Beneficiary::create(['name' => 'Pending Applicant', 'age' => 40, 'sex' => 'Female', 'status' => 'Pending']);
+        Beneficiary::create(['name' => 'Released Applicant', 'age' => 40, 'sex' => 'Female', 'status' => 'Released']);
+        Beneficiary::create(['name' => 'Rejected Applicant', 'age' => 40, 'sex' => 'Female', 'status' => 'Rejected']);
+
+        $this->actingAs($user)->get(route('applications.index'))
+            ->assertOk()
+            ->assertSee('Pending Applicant')
+            ->assertDontSee('Released Applicant');
+
+        $this->actingAs($user)->get(route('beneficiary-records.index'))
+            ->assertOk()
+            ->assertSee('Released Applicant')
+            ->assertSee('Rejected Applicant')
+            ->assertDontSee('Pending Applicant');
     }
 }

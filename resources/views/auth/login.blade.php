@@ -103,7 +103,7 @@
                         <label for="password">Password</label>
                         <span class="input-icon lock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16.5 10.5V7.875a4.5 4.5 0 1 0-9 0V10.5"/><path d="M6.75 10.5h10.5a1.5 1.5 0 0 1 1.5 1.5v6.75a1.5 1.5 0 0 1-1.5 1.5H6.75a1.5 1.5 0 0 1-1.5-1.5V12a1.5 1.5 0 0 1 1.5-1.5Z"/></svg></span>
                         <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="Password" aria-describedby="password-error">
-                        <button class="password-toggle" type="button" aria-controls="password" aria-label="Show password">SHOW</button>
+                        <button class="password-toggle" type="button" aria-controls="password" aria-label="Show password" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/><path class="eye-slash" d="m4 4 16 16"/></svg></button>
                         @error('password')<p class="field-error" id="password-error">{{ $message }}</p>@enderror
                     </div>
                     <div class="form-options">
@@ -119,7 +119,7 @@
     </main>
     <script>
         const toggle = document.querySelector('.password-toggle'), password = document.querySelector('#password');
-        toggle?.addEventListener('click', () => { const shown = password.type === 'text'; password.type = shown ? 'password' : 'text'; toggle.textContent = shown ? 'SHOW' : 'HIDE'; toggle.classList.toggle('is-visible', !shown); toggle.setAttribute('aria-label', shown ? 'Show password' : 'Hide password'); password.classList.add('password-flash'); setTimeout(() => password.classList.remove('password-flash'), 200); });
+        toggle?.addEventListener('click', () => { const shown = password.type === 'text'; password.type = shown ? 'password' : 'text'; toggle.classList.toggle('is-visible', !shown); toggle.setAttribute('aria-label', shown ? 'Show password' : 'Hide password'); toggle.setAttribute('aria-pressed', String(!shown)); password.classList.add('password-flash'); setTimeout(() => password.classList.remove('password-flash'), 200); });
         const signInButton = document.querySelector('#signInButton');
         signInButton?.addEventListener('click', event => { const ripple = document.createElement('i'); const rect = signInButton.getBoundingClientRect(); ripple.className = 'button-ripple'; ripple.style.left = `${event.clientX - rect.left}px`; ripple.style.top = `${event.clientY - rect.top}px`; signInButton.append(ripple); ripple.addEventListener('animationend', () => ripple.remove()); });
         document.querySelector('#loginForm')?.addEventListener('submit', function () { if (this.checkValidity()) { signInButton.classList.add('is-loading'); signInButton.disabled = true; } });

@@ -7,6 +7,7 @@
             </header>
 
             <section class="admin-dashboard__grid admin-dashboard__grid--primary">
+                <article class="admin-card admin-card--beneficiaries"><p class="admin-card__eyebrow">Beneficiary records</p><h2>Total beneficiaries</h2><strong class="admin-card__beneficiary-total">{{ number_format($beneficiarySummary['total_records']) }}</strong><div class="admin-card__beneficiary-details"><span><b>{{ number_format($beneficiarySummary['single_record_beneficiaries']) }}</b> Single-record</span><span><b>{{ number_format($beneficiarySummary['returning_records']) }}</b> Returning records</span></div></article>
                 <article class="admin-card admin-card--approvals">
                     <div class="admin-card__heading"><div><p class="admin-card__eyebrow">Requires attention</p><h2>Pending approvals</h2></div><b>{{ $pendingApprovals->count() }}</b></div>
                     <div class="admin-approval-list">

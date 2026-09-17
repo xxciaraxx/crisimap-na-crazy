@@ -15,4 +15,14 @@ class Barangay extends Model
     {
         return $this->hasMany(Beneficiary::class);
     }
+
+    public function caseRecords()
+    {
+        return $this->hasMany(CaseRecord::class);
+    }
+
+    public function intakes()
+    {
+        return $this->hasMany(GeneralIntakeSheet::class);
+    }
 }

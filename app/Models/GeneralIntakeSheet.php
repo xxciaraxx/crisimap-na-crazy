@@ -10,7 +10,6 @@ class GeneralIntakeSheet extends Model
     use HasFactory;
 
     protected $fillable = [
-        'intake_number',
         'intake_date',
         'program',
         'client_type',
@@ -25,6 +24,7 @@ class GeneralIntakeSheet extends Model
         'barangay_id',
         'address',
         'purpose_of_assistance',
+        'assistance_specification',
         'requested_amount',
         'diagnosis_or_cause_of_death',
         'family_composition',
@@ -41,6 +41,10 @@ class GeneralIntakeSheet extends Model
         'interviewer_position',
         'encoded_by',
         'status',
+        'workflow_stage',
+        'rejection_reason',
+        'rejected_by',
+        'rejected_at',
     ];
     protected $casts = [
         'intake_date' => 'date',
@@ -54,17 +58,56 @@ class GeneralIntakeSheet extends Model
         'employed_members_count' => 'integer',
         'seasonal_members_count' => 'integer',
         'monthly_expenses' => 'decimal:2',
+        'rejected_at' => 'datetime',
     ];
 
     protected static function booted(): void
     {
         static::creating(function (self $intake) {
-            if (! $intake->intake_number) $intake->intake_number = 'GIS-'.now()->format('Y').'-'.str_pad((string) ((static::max('id') ?? 0) + 1), 5, '0', STR_PAD_LEFT);
+            if (! $intake->intake_number) {
+                $year = $intake->intake_date
+                    ? date('Y', strtotime((string) $intake->intake_date))
+                    : now()->format('Y');
+                $prefix = 'TAG-AICS-'.$year.'-';
+                $lastSequence = static::query()
+                    ->where('intake_number', 'like', 'TAG-AICS-%')
+                    ->pluck('intake_number')
+                    ->map(fn (string $number) => (int) substr($number, -5))
+                    ->max() ?? 0;
+
+                $intake->intake_number = $prefix.str_pad((string) ($lastSequence + 1), 5, '0', STR_PAD_LEFT);
+            }
+        });
+
+        static::updating(function (self $intake): void {
+            if ($intake->isDirty('intake_number')) {
+                $intake->intake_number = $intake->getOriginal('intake_number');
+            }
         });
     }
 
     public function barangay() { return $this->belongsTo(Barangay::class); }
     public function encoder() { return $this->belongsTo(User::class, 'encoded_by'); }
-    public function caseRecord() { return $this->hasOne(CaseRecord::class); }
+    public function rejectedBy() { return $this->belongsTo(User::class, 'rejected_by'); }
+    public function beneficiaries() { return $this->hasMany(Beneficiary::class); }
     public function documents() { return $this->hasMany(DocumentRecord::class); }
+    public function attachments() { return $this->hasMany(Attachment::class); }
+
+    public function statusLabel(): string
+    {
+        return match ($this->workflow_stage) {
+            'eligibility_review' => 'Waiting for the Focal Person to check eligibility',
+            'head_approval' => 'Waiting for the MSWDO Head\'s approval',
+            'approved' => 'Approved, waiting for the funds to be released',
+            'released' => 'Released',
+            'rejected' => 'Rejected',
+            default => match ($this->status) {
+                'submitted' => 'Waiting for the Focal Person to check eligibility',
+                'approved' => 'Approved, waiting for the funds to be released',
+                'released' => 'Released',
+                'rejected' => 'Rejected',
+                default => ucfirst(str_replace('_', ' ', (string) $this->status)),
+            },
+        };
+    }
 }

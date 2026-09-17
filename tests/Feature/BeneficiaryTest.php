@@ -12,7 +12,7 @@ class BeneficiaryTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_authenticated_user_can_create_beneficiary(): void
+    public function test_authenticated_user_cannot_create_beneficiary_directly(): void
     {
         $user = User::factory()->create([
             'role' => 'focal_person',
@@ -29,8 +29,8 @@ class BeneficiaryTest extends TestCase
             'case_info' => 'Test case',
         ]);
 
-        $response->assertRedirect('/beneficiaries');
-        $this->assertDatabaseHas('beneficiaries', ['name' => 'Juan Dela Cruz']);
+        $response->assertStatus(405);
+        $this->assertDatabaseMissing('beneficiaries', ['name' => 'Juan Dela Cruz']);
     }
 
     public function test_duplicate_check_flags_matching_beneficiary(): void
@@ -58,7 +58,7 @@ class BeneficiaryTest extends TestCase
             ->assertJsonPath('eligible', false);
     }
 
-    public function test_supervisor_can_override_ineligible_application(): void
+    public function test_direct_creation_cannot_bypass_duplicate_checks(): void
     {
         $supervisor = User::factory()->create([
             'role' => 'super_admin',
@@ -87,14 +87,8 @@ class BeneficiaryTest extends TestCase
             'override_justification' => 'Emergency medical need approved by supervisor.',
         ]);
 
-        $response->assertRedirect('/beneficiaries');
-
-        $this->assertDatabaseCount('beneficiaries', 2);
-        $this->assertDatabaseHas('beneficiaries', [
-            'name' => 'Pedro Reyes',
-            'eligibility_status' => 'Overridden',
-            'override_by' => $supervisor->id,
-        ]);
+        $response->assertStatus(405);
+        $this->assertDatabaseCount('beneficiaries', 1);
     }
 
     public function test_pending_match_is_reported_without_claiming_a_released_match(): void

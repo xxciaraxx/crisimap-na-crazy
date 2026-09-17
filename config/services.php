@@ -31,4 +31,9 @@ return [
         ],
     ],
 
+    'geoapify' => [
+        'key' => env('GEOAPIFY_API_KEY'),
+        'timeout' => (int) env('GEOAPIFY_TIMEOUT', 10),
+    ],
+
 ];

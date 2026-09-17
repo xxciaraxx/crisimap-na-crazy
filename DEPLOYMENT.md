@@ -20,3 +20,17 @@
    - php artisan view:cache
    - php artisan storage:link
 6. Enable SSL and set the site to HTTPS.
+
+## Geocoding Worker
+Beneficiary geocoding uses the database queue. Keep a worker running for the
+`geocoding` queue:
+
+   php artisan queue:work --queue=geocoding
+
+Set `NOMINATIM_USER_AGENT` to a descriptive application name. For production,
+include a real project contact address in that value.
+
+Set `GEOAPIFY_API_KEY` to enable Geoapify address geocoding. When configured,
+returned coordinates are checked against `public/geo/barangay-boundaries.geojson`
+and the matching Tagudin barangay is saved automatically. If the key is empty,
+the existing Nominatim fallback remains active.

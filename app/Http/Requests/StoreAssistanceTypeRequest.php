@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreAssistanceTypeRequest extends FormRequest
 {
@@ -14,8 +15,8 @@ class StoreAssistanceTypeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255', 'unique:assistance_types,name'],
-            'color' => ['nullable', 'string', 'max:20'],
+            'name' => ['required', 'string', 'max:255', 'unique:assistance_types,name', Rule::notIn(['Other', 'Others', 'Other / Miscellaneous'])],
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'description' => ['nullable', 'string'],
         ];
     }

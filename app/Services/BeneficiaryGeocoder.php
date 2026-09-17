@@ -11,6 +11,13 @@ use Illuminate\Support\Str;
 
 class BeneficiaryGeocoder
 {
+    public function __construct(
+        private readonly NominatimThrottle $throttle,
+        private readonly GeoapifyGeocodingService $geoapify,
+        private readonly BarangayBoundaryLocator $boundaryLocator,
+    ) {
+    }
+
     public function centroidFor(?int $barangayId): ?array
     {
         $barangay = $barangayId ? \App\Models\Barangay::find($barangayId) : null;
@@ -41,29 +48,35 @@ class BeneficiaryGeocoder
     {
         $fallback = $this->jitteredCentroidFor($beneficiary->barangay_id, $beneficiary->id ?: $beneficiary->history_key);
         $address = Str::squish((string) $beneficiary->address);
+        $barangay = Str::squish((string) $beneficiary->barangay?->name);
 
         if (blank($address)) {
             return $fallback ? $fallback + ['precision' => 'barangay_centroid'] : [];
         }
 
-        $query = Str::lower($address.'|'.$beneficiary->barangay_id);
+        $search = implode(', ', array_filter([$address, $barangay, 'Tagudin', 'Ilocos Sur', 'Philippines']));
         try {
-            $result = Cache::remember('geocode:'.sha1($query), now()->addDays(90), function () use ($address) {
-                $response = Http::acceptJson()
-                    ->withUserAgent('CRISIMAP/1.0 (MSWDO Tagudin AICS System)')
-                    ->timeout(8)
-                    ->retry(1, 1200)
-                    ->get('https://nominatim.openstreetmap.org/search', [
-                        'street' => $address,
-                        'city' => 'Tagudin',
-                        'county' => 'Ilocos Sur',
-                        'country' => 'Philippines',
-                        'format' => 'jsonv2',
-                        'limit' => 1,
-                    ]);
+            if (filled(config('services.geoapify.key'))) {
+                $result = $this->geoapify->geocode($search);
+            } else {
+                $query = Str::lower(implode('|', [$address, $barangay, 'Tagudin', 'Ilocos Sur', 'Philippines']));
+                $result = Cache::remember('geocode:'.sha1($query), now()->addDays(90), function () use ($search) {
+                    return $this->throttle->run(function () use ($search) {
+                        $response = Http::acceptJson()
+                            ->withHeaders(['User-Agent' => config('nominatim.user_agent')])
+                            ->timeout((int) config('nominatim.timeout', 10))
+                            ->retry(1, 1200)
+                            ->get(rtrim((string) config('nominatim.base_url'), '/').'/search', [
+                                'q' => $search,
+                                'countrycodes' => config('nominatim.country_code', 'ph'),
+                                'format' => 'jsonv2',
+                                'limit' => 1,
+                            ]);
 
-                return $response->successful() ? $response->json()[0] ?? null : null;
-            });
+                        return $response->successful() ? $response->json()[0] ?? null : null;
+                    });
+                });
+            }
         } catch (\Throwable $exception) {
             Log::warning('Beneficiary geocoding request failed.', [
                 'beneficiary_id' => $beneficiary->id,
@@ -73,21 +86,37 @@ class BeneficiaryGeocoder
             throw $exception;
         }
 
-        if (is_array($result) && $this->isConfident($result)) {
-            return [
-                'latitude' => (float) $result['lat'],
-                'longitude' => (float) $result['lon'],
-                'precision' => 'exact_address',
-            ];
+        if (is_array($result)) {
+            $latitude = $result['latitude'] ?? $result['lat'] ?? null;
+            $longitude = $result['longitude'] ?? $result['lon'] ?? null;
+            if (is_numeric($latitude) && is_numeric($longitude)) {
+                $location = [
+                    'latitude' => (float) $latitude,
+                    'longitude' => (float) $longitude,
+                    'precision' => $result['precision'] ?? ($this->isExactAddress($result) ? 'exact_address' : 'place_result'),
+                ];
+                $barangayMatch = $this->boundaryLocator->find($location['latitude'], $location['longitude']);
+                if ($barangayMatch) {
+                    $location['barangay_id'] = $barangayMatch->id;
+                }
+
+                return $location;
+            }
         }
 
         return $fallback ? $fallback + ['precision' => 'barangay_centroid'] : [];
     }
 
-    private function isConfident(array $result): bool
+    private function hasCoordinates(array $result): bool
     {
         return isset($result['lat'], $result['lon'])
-            && (float) ($result['importance'] ?? 0) >= 0.001
-            && ! in_array($result['type'] ?? '', ['country', 'state', 'province'], true);
+            && is_numeric($result['lat'])
+            && is_numeric($result['lon']);
+    }
+
+    private function isExactAddress(array $result): bool
+    {
+        return isset($result['address']['house_number'])
+            && ! in_array($result['type'] ?? '', ['country', 'state', 'province', 'town', 'village', 'municipality'], true);
     }
 }

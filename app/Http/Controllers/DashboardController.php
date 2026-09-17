@@ -18,16 +18,33 @@ class DashboardController extends Controller
             return $this->superAdminDashboard();
         }
 
+        $pendingApplications = auth()->user()->role === 'admin'
+            ? Beneficiary::query()
+                ->active()
+                ->withIncludedAssistanceType()
+                ->where('status', 'Pending')
+                ->with(['barangay', 'assistanceType', 'encoder'])
+                ->latest('created_at')
+                ->limit(10)
+                ->get()
+            : collect();
+
         $recentBeneficiaries = Beneficiary::query()
             ->active()
+            ->withIncludedAssistanceType()
             ->with(['barangay', 'assistanceType', 'encoder'])
             ->orderByDesc('date_of_assistance')
             ->orderByDesc('created_at')
             ->limit(10)
             ->get();
 
-        $baseQuery = Beneficiary::query()->active();
+        $baseQuery = Beneficiary::query()->active()->withIncludedAssistanceType();
+        // Count every active assistance record so returning applicants are included.
         $totalBeneficiaries = (clone $baseQuery)->count();
+        $recordCountsByPerson = (clone $baseQuery)->pluck('history_key')->countBy();
+        $singleRecordBeneficiaries = $recordCountsByPerson->filter(fn (int $count) => $count === 1)->count();
+        $returningBeneficiaries = $recordCountsByPerson->filter(fn (int $count) => $count > 1)->count();
+        $returningRecords = $recordCountsByPerson->filter(fn (int $count) => $count > 1)->sum(fn (int $count) => $count - 1);
         $thisMonth = (clone $baseQuery)
             ->whereBetween('date_of_assistance', [now()->startOfMonth(), now()->endOfMonth()])
             ->count();
@@ -35,10 +52,12 @@ class DashboardController extends Controller
         $approved = (clone $baseQuery)->where('status', 'Approved')->count();
         $pending = (clone $baseQuery)->where('status', 'Pending')->count();
         $totalAmount = (float) (clone $baseQuery)->sum('amount');
+        $totalAmountDistributed = (float) (clone $baseQuery)->whereIn('status', ['Released', 'Completed'])->sum('amount');
         $averageAmount = $totalBeneficiaries > 0 ? round($totalAmount / $totalBeneficiaries, 2) : 0.0;
 
         $byBarangay = Beneficiary::query()
             ->active()
+            ->withIncludedAssistanceType()
             ->selectRaw('barangays.name as name, COUNT(*) as total, COALESCE(SUM(beneficiaries.amount), 0) as amount_total')
             ->leftJoin('barangays', 'barangays.id', '=', 'beneficiaries.barangay_id')
             ->groupBy('barangays.name')
@@ -48,6 +67,7 @@ class DashboardController extends Controller
 
         $byType = Beneficiary::query()
             ->active()
+            ->withIncludedAssistanceType()
             ->selectRaw('assistance_types.name as name, COUNT(*) as total, COALESCE(SUM(beneficiaries.amount), 0) as amount_total')
             ->leftJoin('assistance_types', 'assistance_types.id', '=', 'beneficiaries.assistance_type_id')
             ->groupBy('assistance_types.name')
@@ -56,6 +76,7 @@ class DashboardController extends Controller
 
         $trendRecords = Beneficiary::query()
             ->active()
+            ->withIncludedAssistanceType()
             ->select(['date_of_assistance', 'amount'])
             ->whereNotNull('date_of_assistance')
             ->where('date_of_assistance', '>=', now()->subYear())
@@ -86,6 +107,7 @@ class DashboardController extends Controller
 
         $frequentBeneficiaries = Beneficiary::query()
             ->active()
+            ->withIncludedAssistanceType()
             ->selectRaw('name, birth_date, contact, address, history_key, COUNT(*) as applications, COALESCE(SUM(amount), 0) as total_amount, MAX(date_of_assistance) as last_assistance_date')
             ->groupBy('history_key', 'name', 'birth_date', 'contact', 'address')
             ->having('applications', '>', 1)
@@ -99,6 +121,7 @@ class DashboardController extends Controller
 
         $seasonalDemand = Beneficiary::query()
             ->active()
+            ->withIncludedAssistanceType()
             ->selectRaw($monthExpression.' as month_number, COUNT(*) as total')
             ->whereNotNull('date_of_assistance')
             ->groupBy('month_number')
@@ -113,6 +136,9 @@ class DashboardController extends Controller
 
         $insights = $this->buildInsights([
             'totalBeneficiaries' => $totalBeneficiaries,
+            'singleRecordBeneficiaries' => $singleRecordBeneficiaries,
+            'returningBeneficiaries' => $returningBeneficiaries,
+            'returningRecords' => $returningRecords,
             'totalAmount' => $totalAmount,
             'averageAmount' => $averageAmount,
             'approvalRate' => $approvalRate,
@@ -126,11 +152,15 @@ class DashboardController extends Controller
         return view('dashboard', compact(
             'recentBeneficiaries',
             'totalBeneficiaries',
+            'singleRecordBeneficiaries',
+            'returningBeneficiaries',
+            'returningRecords',
             'thisMonth',
             'released',
             'approved',
             'pending',
             'totalAmount',
+            'totalAmountDistributed',
             'averageAmount',
             'approvalRate',
             'releaseRate',
@@ -143,7 +173,8 @@ class DashboardController extends Controller
             'lowCoverageBarangays',
             'growthTrend',
             'forecast',
-            'insights'
+            'insights',
+            'pendingApplications'
         ));
     }
 
@@ -186,6 +217,17 @@ class DashboardController extends Controller
             'failed' => Beneficiary::query()->where('geocode_precision', 'failed')->count(),
         ];
 
+        $recordCountsByPerson = Beneficiary::query()
+            ->active()
+            ->pluck('history_key')
+            ->countBy();
+        $beneficiarySummary = [
+            'total_records' => $recordCountsByPerson->sum(),
+            'single_record_beneficiaries' => $recordCountsByPerson->filter(fn (int $count) => $count === 1)->count(),
+            'returning_beneficiaries' => $recordCountsByPerson->filter(fn (int $count) => $count > 1)->count(),
+            'returning_records' => $recordCountsByPerson->filter(fn (int $count) => $count > 1)->sum(fn (int $count) => $count - 1),
+        ];
+
         return view('dashboard.super-admin', compact(
             'pendingApprovals',
             'roleRoster',
@@ -193,7 +235,8 @@ class DashboardController extends Controller
             'incompleteOnboarding',
             'recentActivity',
             'referenceData',
-            'geocodingHealth'
+            'geocodingHealth',
+            'beneficiarySummary'
         ));
     }
 
@@ -231,20 +274,25 @@ class DashboardController extends Controller
     {
         $insights = [];
 
-        $insights[] = $metrics['topBarangay']
-            ? $metrics['topBarangay'].' leads assistance demand with '.number_format((int) $metrics['topBarangayTotal']).' record(s).'
-            : 'No barangay trend is available yet.';
+        if ($metrics['topBarangay']) {
+            $insights[] = $metrics['topBarangay'].' has the highest assistance demand with '.number_format((int) $metrics['topBarangayTotal']).' record(s).';
+        }
 
-        $insights[] = 'Average assistance amount is '.number_format($metrics['averageAmount'], 2).'.';
-        $insights[] = 'Approval rate stands at '.$metrics['approvalRate'].'% and release rate at '.$metrics['releaseRate'].'%.';
+        if ((float) $metrics['averageAmount'] > 0) {
+            $insights[] = 'The average assistance amount is '.number_format($metrics['averageAmount'], 2).'.';
+        }
+
+        if ((int) $metrics['totalBeneficiaries'] > 0) {
+            $insights[] = 'Approval is at '.$metrics['approvalRate'].'% and release is at '.$metrics['releaseRate'].'% of '.number_format((int) $metrics['totalBeneficiaries']).' record(s).';
+        }
 
         if ($metrics['frequentBeneficiaries']->isNotEmpty()) {
-            $insights[] = 'Recurring beneficiaries are present, so the 90-day policy remains important for fairness.';
+            $insights[] = number_format($metrics['returningBeneficiaries']).' returning beneficiary record(s) appear in the current data set.';
         }
 
         if ($metrics['monthlyTrends']->isNotEmpty()) {
             $latest = $metrics['monthlyTrends']->last();
-            $insights[] = 'Most recent month recorded '.number_format((int) $latest->total).' application(s).';
+            $insights[] = $latest->month_key.' recorded '.number_format((int) $latest->total).' application(s).';
         }
 
         return $insights;
