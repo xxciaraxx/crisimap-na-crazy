@@ -9,6 +9,7 @@ use App\Models\AssistanceType;
 use App\Models\Barangay;
 use App\Models\OfficialSetting;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class SettingsController extends Controller
 {
@@ -23,7 +24,15 @@ class SettingsController extends Controller
 
     public function updateOfficialSettings(Request $request)
     {
-        $data = $request->validate(['settings' => ['required', 'array'], 'settings.*' => ['nullable', 'string', 'max:2000']]);
+        $data = $request->validate([
+            'settings' => ['required', 'array'],
+            'settings.*' => ['nullable', 'string', 'max:2000'],
+        ]);
+        if ($unknownKeys = array_diff(array_keys($data['settings']), OfficialSetting::KEYS)) {
+            throw ValidationException::withMessages([
+                'settings' => 'Unsupported document setting: '.implode(', ', $unknownKeys),
+            ]);
+        }
         foreach ($data['settings'] as $key => $value) {
             OfficialSetting::updateOrCreate(['key' => $key], ['value' => $value]);
         }
@@ -49,13 +58,25 @@ class SettingsController extends Controller
 
     public function destroyBarangay(Barangay $barangay)
     {
+        if ($barangay->beneficiaries()->exists() || $barangay->caseRecords()->exists() || $barangay->intakes()->exists()) {
+            return back()->with('error', 'This barangay is in use and cannot be removed.');
+        }
+
+        $name = $barangay->name;
         $barangay->delete();
+        $this->logActivity('deleted', 'Removed barangay '.$name, $barangay);
         return back()->with('success', 'Barangay removed.');
     }
 
     public function destroyAssistanceType(AssistanceType $assistanceType)
     {
+        if ($assistanceType->beneficiaries()->exists()) {
+            return back()->with('error', 'This assistance type is in use and cannot be removed.');
+        }
+
+        $name = $assistanceType->name;
         $assistanceType->delete();
+        $this->logActivity('deleted', 'Removed assistance type '.$name, $assistanceType);
         return back()->with('success', 'Assistance type removed.');
     }
 

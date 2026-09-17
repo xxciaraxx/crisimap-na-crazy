@@ -274,20 +274,25 @@ class DashboardController extends Controller
     {
         $insights = [];
 
-        $insights[] = $metrics['topBarangay']
-            ? $metrics['topBarangay'].' leads assistance demand with '.number_format((int) $metrics['topBarangayTotal']).' record(s).'
-            : 'No barangay trend is available yet.';
+        if ($metrics['topBarangay']) {
+            $insights[] = $metrics['topBarangay'].' has the highest assistance demand with '.number_format((int) $metrics['topBarangayTotal']).' record(s).';
+        }
 
-        $insights[] = 'Average assistance amount is '.number_format($metrics['averageAmount'], 2).'.';
-        $insights[] = 'Approval rate stands at '.$metrics['approvalRate'].'% and release rate at '.$metrics['releaseRate'].'%.';
+        if ((float) $metrics['averageAmount'] > 0) {
+            $insights[] = 'The average assistance amount is '.number_format($metrics['averageAmount'], 2).'.';
+        }
+
+        if ((int) $metrics['totalBeneficiaries'] > 0) {
+            $insights[] = 'Approval is at '.$metrics['approvalRate'].'% and release is at '.$metrics['releaseRate'].'% of '.number_format((int) $metrics['totalBeneficiaries']).' record(s).';
+        }
 
         if ($metrics['frequentBeneficiaries']->isNotEmpty()) {
-            $insights[] = 'Returning beneficiaries are present, so the 90-day policy remains important for fairness.';
+            $insights[] = number_format($metrics['returningBeneficiaries']).' returning beneficiary record(s) appear in the current data set.';
         }
 
         if ($metrics['monthlyTrends']->isNotEmpty()) {
             $latest = $metrics['monthlyTrends']->last();
-            $insights[] = 'Most recent month recorded '.number_format((int) $latest->total).' application(s).';
+            $insights[] = $latest->month_key.' recorded '.number_format((int) $latest->total).' application(s).';
         }
 
         return $insights;

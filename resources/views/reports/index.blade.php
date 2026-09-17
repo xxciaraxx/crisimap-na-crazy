@@ -158,32 +158,32 @@
                 <div class="bg-white shadow rounded-lg p-5">
                     <div class="flex items-start justify-between gap-4 mb-4">
                         <div>
-                            <h3 class="font-semibold text-lg text-slate-900">AICS Beneficiaries by Barangay</h3>
-                            <p class="text-sm text-gray-500">Number of released beneficiaries in each barangay for the selected period</p>
+                            <h3 class="font-semibold text-lg text-slate-900">Assistance Distribution</h3>
+                            <p class="text-sm text-gray-500">Number of released beneficiaries by assistance type for the selected period</p>
                         </div>
                         <div class="text-right">
                             <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{{ number_format($summary['total']) }} beneficiaries</span>
                             <p class="mt-2 text-xs font-medium text-slate-500">{{ $periodLabel }}</p>
                         </div>
                     </div>
-                    @if($summary['barangay_analytics']->isNotEmpty())
-                        <div class="h-80"><canvas id="assistance-volume-chart" aria-label="Bar graph showing AICS beneficiaries by barangay"></canvas></div>
+                    @if($summary['assistance_analytics']->isNotEmpty())
+                        <div class="h-80"><canvas id="assistance-volume-chart" aria-label="Bar graph showing beneficiaries by assistance type"></canvas></div>
                     @else
-                        <p class="text-sm text-gray-500">No beneficiary data for the selected criteria.</p>
+                        <p class="text-sm text-gray-500">No assistance data for the selected criteria.</p>
                     @endif
                 </div>
                 <div class="bg-white shadow rounded-lg p-5">
                     <div class="flex items-start justify-between gap-4 mb-4">
                         <div>
-                            <h3 class="font-semibold text-lg">Assistance Distribution</h3>
-                            <p class="text-sm text-gray-500">Percentage of records by assistance type</p>
+                            <h3 class="font-semibold text-lg">Barangay Distribution</h3>
+                            <p class="text-sm text-gray-500">Percentage of released beneficiaries by barangay</p>
                         </div>
                         <span class="text-xs text-gray-500">Based on record count</span>
                     </div>
-                    @if($summary['assistance_analytics']->isNotEmpty())
-                        <div class="h-72"><canvas id="assistance-distribution-chart" aria-label="Pie chart of assistance distribution"></canvas></div>
+                    @if($summary['barangay_analytics']->isNotEmpty())
+                        <div class="h-72"><canvas id="assistance-distribution-chart" aria-label="Pie chart of barangay distribution"></canvas></div>
                     @else
-                        <p class="text-sm text-gray-500">No assistance data for the selected criteria.</p>
+                        <p class="text-sm text-gray-500">No barangay data for the selected criteria.</p>
                     @endif
                 </div>
             </section>
@@ -287,16 +287,20 @@
             </div>
         </div>
     </div>
-    @if($summary['assistance_analytics']->isNotEmpty())
+    @if($summary['assistance_analytics']->isNotEmpty() || $summary['barangay_analytics']->isNotEmpty())
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
         <script>
             (() => {
                 const analytics = @json($summary['assistance_analytics']->values());
                 const barangays = @json($summary['barangay_analytics']->values());
-                const labels = analytics.map(item => item.name);
-                const counts = analytics.map(item => item.count);
+                const assistanceLabels = analytics.map(item => item.name);
+                const assistanceCounts = analytics.map(item => item.count);
+                const barangayLabels = barangays.map(item => item.name);
+                const barangayCounts = barangays.map(item => item.count);
                 const fallbackColors = ['#1768aa', '#2f8f83', '#d28a16', '#8e5bb7', '#d05a67', '#4b78b8', '#5c9a63', '#c46b32'];
-                const colors = analytics.map((item, index) => item.color || fallbackColors[index % fallbackColors.length]);
+                const assistanceColors = analytics.map((item, index) => item.color || fallbackColors[index % fallbackColors.length]);
+                const barangayStartHue = Math.floor(Math.random() * 360);
+                const barangayColors = barangays.map((item, index) => `hsl(${(barangayStartHue + (index * 137.508)) % 360}, 68%, 48%)`);
                 const chartOptions = { responsive: true, maintainAspectRatio: false };
                 const percentageLabels = {
                     id: 'percentageLabels',
@@ -323,38 +327,42 @@
                     },
                 };
 
-                new Chart(document.getElementById('assistance-volume-chart'), {
-                    type: 'bar',
-                    data: {
-                        labels: barangays.map(item => item.name),
-                        datasets: [{
-                            label: 'AICS beneficiaries',
-                            data: barangays.map(item => item.count),
-                            backgroundColor: '#2563eb',
-                            hoverBackgroundColor: '#1d4ed8',
-                            borderRadius: 6,
-                            barThickness: 22,
-                        }],
-                    },
-                    options: {
-                        ...chartOptions,
-                        indexAxis: 'y',
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: { callbacks: { label: context => ` ${context.parsed.x} beneficiaries` } },
+                if (analytics.length) {
+                    new Chart(document.getElementById('assistance-volume-chart'), {
+                        type: 'bar',
+                        data: {
+                            labels: assistanceLabels,
+                            datasets: [{
+                                label: 'AICS beneficiaries',
+                                data: assistanceCounts,
+                                backgroundColor: assistanceColors,
+                                hoverBackgroundColor: assistanceColors,
+                                borderRadius: 6,
+                                barThickness: 22,
+                            }],
                         },
-                        scales: {
-                            x: { beginAtZero: true, ticks: { precision: 0, stepSize: 1 }, grid: { color: '#e2e8f0' } },
-                            y: { grid: { display: false } },
+                        options: {
+                            ...chartOptions,
+                            indexAxis: 'y',
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: { callbacks: { label: context => ` ${context.parsed.x} beneficiaries` } },
+                            },
+                            scales: {
+                                x: { beginAtZero: true, ticks: { precision: 0, stepSize: 1 }, grid: { color: '#e2e8f0' } },
+                                y: { grid: { display: false } },
+                            },
                         },
-                    },
-                });
-                new Chart(document.getElementById('assistance-distribution-chart'), {
-                    type: 'pie',
-                    data: { labels, datasets: [{ data: counts, backgroundColor: colors }] },
-                    options: chartOptions,
-                    plugins: [percentageLabels],
-                });
+                    });
+                }
+                if (barangays.length) {
+                    new Chart(document.getElementById('assistance-distribution-chart'), {
+                        type: 'pie',
+                        data: { labels: barangayLabels, datasets: [{ data: barangayCounts, backgroundColor: barangayColors }] },
+                        options: chartOptions,
+                        plugins: [percentageLabels],
+                    });
+                }
             })();
         </script>
     @endif

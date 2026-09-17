@@ -102,9 +102,9 @@
                 <div class="space-y-6">
                     <div class="bg-white shadow rounded-xl p-5">
                         <h3 class="font-semibold text-lg mb-4">Automated Insights</h3>
-                        <ul class="space-y-3 text-sm text-gray-700">
+                        <ul class="grid grid-cols-1 gap-3 text-sm text-gray-700 xl:grid-cols-2">
                             @foreach($insights as $insight)
-                                <li class="rounded-lg bg-gray-50 p-3">{{ $insight }}</li>
+                                <li class="rounded-lg border border-slate-100 bg-gray-50 p-3 leading-relaxed">{{ $insight }}</li>
                             @endforeach
                         </ul>
                     </div>

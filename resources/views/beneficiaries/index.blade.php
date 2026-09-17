@@ -114,6 +114,7 @@
                 </form>
             </div>
 
+            @unless(request()->routeIs('applications.index'))
             <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4">
                     <div>
@@ -127,12 +128,11 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client Name</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Beneficiary Name</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Records</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Availed Assistance</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Birth Date</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Barangay</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assistance</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Release Date</th>
@@ -143,14 +143,16 @@
                         <tbody class="divide-y divide-gray-200">
                             @forelse($beneficiaries as $beneficiary)
                                 @php($isRejected = strtolower((string) $beneficiary->status) === 'rejected')
+                                @php($clientName = $beneficiary->intake?->client_name ?: $beneficiary->name)
+                                @php($beneficiaryName = $beneficiary->intake?->beneficiary_name ?: $beneficiary->name)
+                                @php($beneficiaryLabel = strcasecmp(trim((string) $clientName), trim((string) $beneficiaryName)) === 0 ? 'Self' : $beneficiaryName)
                                 <tr>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->reference_code ?? 'N/A' }}</td>
-                                    <td class="px-4 py-3">{{ $beneficiary->name }}</td>
+                                    <td class="px-4 py-3">{{ $clientName }}</td>
+                                    <td class="px-4 py-3">{{ $beneficiaryLabel }}</td>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->historyEntries->whereNull('archived_at')->count() }}</td>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->historyEntries->whereNull('archived_at')->pluck('assistanceType.name')->filter()->unique()->implode(', ') ?: '—' }}</td>
-                                    <td class="px-4 py-3 text-sm">{{ $beneficiary->birth_date?->format('M d, Y') ?? '—' }}</td>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->barangay->name ?? '—' }}</td>
-                                    <td class="px-4 py-3 text-sm">{{ $beneficiary->assistanceType->name ?? '—' }}</td>
                                     <td class="px-4 py-3 text-sm">PHP {{ number_format((float) ($beneficiary->amount ?? 0), 2) }}</td>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->date_of_assistance?->format('M d, Y') }}</td>
                                     <td class="px-4 py-3 text-sm">{{ $beneficiary->released_at?->format('M d, Y') ?? '—' }}</td>
@@ -176,7 +178,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="12" class="px-4 py-6 text-center text-gray-500">No beneficiaries found.</td></tr>
+                                <tr><td colspan="11" class="px-4 py-6 text-center text-gray-500">No beneficiaries found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -184,9 +186,12 @@
                 <div class="space-y-4 p-4 md:hidden">
                     @forelse($beneficiaries as $beneficiary)
                         @php($isRejected = strtolower((string) $beneficiary->status) === 'rejected')
+                        @php($clientName = $beneficiary->intake?->client_name ?: $beneficiary->name)
+                        @php($beneficiaryName = $beneficiary->intake?->beneficiary_name ?: $beneficiary->name)
+                        @php($beneficiaryLabel = strcasecmp(trim((string) $clientName), trim((string) $beneficiaryName)) === 0 ? 'Self' : $beneficiaryName)
                         <article class="rounded-xl border border-slate-200 p-4 shadow-sm">
                             <div class="flex items-start justify-between gap-3">
-                                <div><p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ $beneficiary->reference_code ?? 'No reference' }}</p><h4 class="mt-1 font-semibold text-slate-900">{{ $beneficiary->name }}</h4><p class="text-sm text-slate-500">{{ $beneficiary->assistanceType->name ?? 'Assistance not specified' }} · {{ $beneficiary->barangay->name ?? 'Barangay not specified' }}</p></div>
+                                <div><p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ $beneficiary->reference_code ?? 'No reference' }}</p><h4 class="mt-1 font-semibold text-slate-900">{{ $clientName }}</h4><p class="text-sm text-slate-500">Client · {{ $beneficiaryLabel === 'Self' ? 'Beneficiary: Self' : 'Beneficiary: '.$beneficiaryLabel }}</p><p class="text-sm text-slate-500">{{ $beneficiary->assistanceType->name ?? 'Assistance not specified' }} · {{ $beneficiary->barangay->name ?? 'Barangay not specified' }}</p></div>
                                 <x-status-badge :status="$beneficiary->status" />
                             </div>
                             <dl class="mt-4 grid grid-cols-2 gap-3 text-sm"><div><dt class="text-xs text-slate-400">Records</dt><dd class="font-semibold">{{ $beneficiary->historyEntries->whereNull('archived_at')->count() }}</dd></div><div><dt class="text-xs text-slate-400">Availed assistance</dt><dd class="font-semibold">{{ $beneficiary->historyEntries->whereNull('archived_at')->pluck('assistanceType.name')->filter()->unique()->implode(', ') ?: '—' }}</dd></div><div><dt class="text-xs text-slate-400">Amount</dt><dd class="font-semibold">PHP {{ number_format((float) ($beneficiary->amount ?? 0), 2) }}</dd></div><div><dt class="text-xs text-slate-400">Assistance date</dt><dd class="font-semibold">{{ $beneficiary->date_of_assistance?->format('M d, Y') ?? '—' }}</dd></div><div><dt class="text-xs text-slate-400">Release date</dt><dd class="font-semibold">{{ $beneficiary->released_at?->format('M d, Y') ?? '—' }}</dd></div></dl>
@@ -206,6 +211,7 @@
                 </div>
                 <div class="border-t border-slate-200 p-4">{{ $beneficiaries->onEachSide(1)->links() }}</div>
             </div>
+            @endunless
         </div>
     </div>
 </x-app-layout>

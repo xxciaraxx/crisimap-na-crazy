@@ -38,7 +38,7 @@ class MapController extends Controller
             ->map(fn (AssistanceType $type) => array_merge([
             'id' => $type->id,
             'name' => $type->name,
-        ], $this->categoryStyle($type->name)));
+        ], $this->categoryStyle($type->name, $type->color)));
 
         $knownNames = $assistanceTypes->pluck('name')->map(fn (string $name) => strtolower($name));
         foreach (self::DEFAULT_ASSISTANCE_TYPES as $name) {
@@ -62,7 +62,7 @@ class MapController extends Controller
             ->active()
             ->with([
                 'barangay:id,name',
-                'assistanceType:id,name',
+                'assistanceType:id,name,color',
                 'encoder:id,name',
                 'intake:id,beneficiary_name',
             ]);
@@ -120,7 +120,7 @@ class MapController extends Controller
                     'approved_at' => $beneficiary->approved_at?->toDateString(),
                     'rejection_reason' => $beneficiary->rejection_reason,
                     'barangay' => $beneficiary->barangay?->name,
-                    'category' => array_merge(['id' => $beneficiary->assistance_type_id, 'name' => $beneficiary->assistanceType->name], $this->categoryStyle($beneficiary->assistanceType->name)),
+                    'category' => array_merge(['id' => $beneficiary->assistance_type_id, 'name' => $beneficiary->assistanceType->name], $this->categoryStyle($beneficiary->assistanceType->name, $beneficiary->assistanceType->color)),
                     // Only authorized roles receive identifying application fields.
                     'details' => [
                         'beneficiary' => $canViewSensitiveDetails ? $registeredBeneficiaryName : 'Protected beneficiary',
@@ -146,15 +146,15 @@ class MapController extends Controller
         return response()->json(['type' => 'FeatureCollection', 'features' => []]);
     }
 
-    private function categoryStyle(?string $name): array
+    private function categoryStyle(?string $name, ?string $color = null): array
     {
         $normalised = strtolower((string) $name);
         foreach (self::CATEGORY_STYLES as $keyword => $style) {
             if (str_contains($normalised, $keyword)) {
-                return $style;
+                return ['color' => $color ?: $style['color'], 'icon' => $style['icon']];
             }
         }
 
-        return self::CATEGORY_STYLES['other'];
+        return ['color' => $color ?: self::CATEGORY_STYLES['other']['color'], 'icon' => self::CATEGORY_STYLES['other']['icon']];
     }
 }

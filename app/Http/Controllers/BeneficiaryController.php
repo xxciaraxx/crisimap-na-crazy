@@ -45,7 +45,7 @@ class BeneficiaryController extends Controller
         }
 
         $query = $this->filteredQuery($request, $statusScope)
-            ->with(['barangay', 'assistanceType', 'encoder', 'overrideUser', 'rejectedBy', 'historyEntries.assistanceType'])
+            ->with(['barangay', 'assistanceType', 'encoder', 'overrideUser', 'rejectedBy', 'historyEntries.assistanceType', 'intake'])
             ->orderByDesc('date_of_assistance')
             ->orderByDesc('created_at');
 

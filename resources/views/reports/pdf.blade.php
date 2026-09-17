@@ -2,7 +2,12 @@
     $analytics = $summary['assistance_analytics'];
     $barangayAnalytics = $summary['barangay_analytics'];
     $total = max((int) $summary['total'], 1);
-    $maxBarangayCount = max((int) ($barangayAnalytics->max('count') ?? 0), 1);
+    $maxAssistanceCount = max((int) ($analytics->max('count') ?? 0), 1);
+    $assistanceFallbackColors = ['#1768aa', '#2f8f83', '#d28a16', '#8e5bb7', '#d05a67', '#4b78b8', '#5c9a63', '#c46b32'];
+    $barangayStartHue = random_int(0, 359);
+    $barangayColors = $barangayAnalytics->keys()->map(
+        fn (int $index): string => 'hsl('.fmod($barangayStartHue + ($index * 137.508), 360).', 68%, 48%)'
+    );
     $circumference = 100;
     $offset = 0;
 @endphp
@@ -108,35 +113,36 @@
     <h2 class="chart-heading">Report Graphs</h2>
     <div class="analytics-grid">
         <div class="analytics-card">
-            <h2>AICS Beneficiaries by Barangay</h2>
-            <p class="muted">Number of released beneficiaries in each barangay.</p>
-            @forelse($barangayAnalytics as $barangay)
-                @php($width = ((int) $barangay['count'] / $maxBarangayCount) * 100)
-                <div class="bar-row"><span class="bar-label">{{ $barangay['name'] }}</span><span class="bar-track"><span class="bar-fill" style="width: {{ $width }}%;"></span></span><span class="bar-value">{{ $barangay['count'] }}</span></div>
+            <h2>Assistance Distribution</h2>
+            <p class="muted">Number of released beneficiaries by assistance type.</p>
+            @forelse($analytics as $index => $item)
+                @php($width = ((int) $item['count'] / $maxAssistanceCount) * 100)
+                @php($color = $item['color'] ?: $assistanceFallbackColors[$index % count($assistanceFallbackColors)])
+                <div class="bar-row"><span class="bar-label">{{ $item['name'] }}</span><span class="bar-track"><span class="bar-fill" style="width: {{ $width }}%; background: {{ $color }};"></span></span><span class="bar-value">{{ $item['count'] }}</span></div>
             @empty
-                <p class="muted">No barangay data for the selected criteria.</p>
+                <p class="muted">No assistance data for the selected criteria.</p>
             @endforelse
-            @if($barangayAnalytics->isNotEmpty())
-                <div class="bar-axis"><span>0 beneficiaries</span><span>{{ $maxBarangayCount }} beneficiaries</span></div>
+            @if($analytics->isNotEmpty())
+                <div class="bar-axis"><span>0 beneficiaries</span><span>{{ $maxAssistanceCount }} beneficiaries</span></div>
             @endif
         </div>
         <div class="analytics-card">
-            <h2>Assistance Distribution</h2>
-            <p class="muted">Percentage of released beneficiaries by assistance type.</p>
+            <h2>Barangay Distribution</h2>
+            <p class="muted">Percentage of released beneficiaries by barangay.</p>
             <div class="pie-wrap">
-                <svg class="pie" viewBox="0 0 42 42" role="img" aria-label="Assistance distribution percentage chart">
+                <svg class="pie" viewBox="0 0 42 42" role="img" aria-label="Barangay distribution percentage chart">
                     <circle cx="21" cy="21" r="15.9155" stroke="#e5edf7"></circle>
-                    @foreach($analytics as $item)
+                    @foreach($barangayAnalytics as $index => $item)
                         @php($dash = $item['share'])
-                        @php($color = $item['color'] ?: '#2563eb')
+                        @php($color = $barangayColors[$index % count($barangayColors)])
                         <circle cx="21" cy="21" r="15.9155" stroke="{{ $color }}" stroke-dasharray="{{ $dash }} {{ $circumference - $dash }}" stroke-dashoffset="-{{ $offset }}"></circle>
                         @php($offset += $dash)
                     @endforeach
                 </svg>
             </div>
             <div class="legend">
-                @foreach($analytics as $item)
-                    <span><i class="swatch" style="background: {{ $item['color'] ?: '#2563eb' }};"></i>{{ $item['name'] }} ({{ number_format($item['share'], 1) }}%)</span>
+                @foreach($barangayAnalytics as $index => $item)
+                    <span><i class="swatch" style="background: {{ $barangayColors[$index % count($barangayColors)] }};"></i>{{ $item['name'] }} ({{ number_format($item['share'], 1) }}%)</span>
                 @endforeach
             </div>
         </div>

@@ -16,7 +16,7 @@ class StoreAssistanceTypeRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255', 'unique:assistance_types,name', Rule::notIn(['Other', 'Others', 'Other / Miscellaneous'])],
-            'color' => ['nullable', 'string', 'max:20'],
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'description' => ['nullable', 'string'],
         ];
     }
