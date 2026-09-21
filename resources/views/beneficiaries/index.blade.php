@@ -114,7 +114,6 @@
                 </form>
             </div>
 
-            @unless(request()->routeIs('applications.index'))
             <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4">
                     <div>
@@ -211,7 +210,6 @@
                 </div>
                 <div class="border-t border-slate-200 p-4">{{ $beneficiaries->onEachSide(1)->links() }}</div>
             </div>
-            @endunless
         </div>
     </div>
 </x-app-layout>

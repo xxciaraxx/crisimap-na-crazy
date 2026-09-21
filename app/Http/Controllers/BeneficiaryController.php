@@ -41,7 +41,7 @@ class BeneficiaryController extends Controller
             $statusScope = ['Pending', 'Approved'];
         } elseif ($request->routeIs('beneficiary-records.index')) {
             $request->merge(['status' => null]);
-            $statusScope = ['Released'];
+            $statusScope = ['Released', 'Rejected', 'Completed'];
         }
 
         $query = $this->filteredQuery($request, $statusScope)
@@ -67,7 +67,7 @@ class BeneficiaryController extends Controller
             'pageTitle' => $request->routeIs('applications.index') ? 'Assistance Applications' : 'Beneficiary Records',
             'pageDescription' => $request->routeIs('applications.index')
                 ? 'Applications awaiting approval or fund release.'
-                : 'Released assistance records for new and returning applicants.',
+                : 'Historical released, rejected, and completed assistance records.',
             'pendingIntakes' => $pendingIntakes,
         ]);
     }
@@ -251,6 +251,7 @@ class BeneficiaryController extends Controller
 
         $beneficiary->load([
             'barangay',
+            'intake.barangay',
             'assistanceType',
             'encoder',
             'overrideUser',
@@ -262,7 +263,9 @@ class BeneficiaryController extends Controller
         $finalAicsPayload = $this->finalAicsPayloadFromIntake($beneficiary);
 
         return Pdf::loadView('beneficiaries.application-form', compact('beneficiary', 'finalAicsPayload'))
-            ->setPaper('a4', 'portrait')
+            // Letter is the base paper for the Final AICS form. The receipt
+            // sections select their named A4 landscape page in the template.
+            ->setPaper('letter', 'portrait')
             ->download('final-aics-form-'.$beneficiary->reference_code.'.pdf');
     }
 
@@ -314,6 +317,9 @@ class BeneficiaryController extends Controller
 
     private function finalAicsPayloadFromIntake(Beneficiary $beneficiary): array
     {
+        // The approved General Intake Sheet is the authoritative source for
+        // Final AICS form data. Older records can still fall back to the
+        // intake attached through their case record.
         $intake = $beneficiary->intake;
         if (! $intake && $beneficiary->relationLoaded('caseRecord')) {
             $intake = $beneficiary->caseRecord?->intake;
@@ -333,11 +339,8 @@ class BeneficiaryController extends Controller
         $amount = $intake->requested_amount ?? $beneficiary->amount;
 
         return array_merge($beneficiary->final_aics_payload ?? [], [
-            'resettled' => false,
-            'disaster_victim' => 'ND',
-            'date_of_occurrence' => $intake->intake_date?->format('Y-m-d'),
-            'estimated_damage' => $intake->assistance_specification ?: $intake->diagnosis_or_cause_of_death,
-            'casualty_name' => $intake->beneficiary_name,
+            // Do not manufacture disaster details from unrelated intake
+            // fields. These remain supplemental form-only entries.
             'client_signature_name' => $clientName,
             'receipt_date' => $intake->intake_date?->format('Y-m-d'),
             'receipt_amount' => $amount,

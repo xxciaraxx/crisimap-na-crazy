@@ -9,7 +9,7 @@
 <div x-cloak x-show="open" x-transition.opacity @click="open = false" class="app-sidebar-backdrop" aria-hidden="true"></div>
 <aside class="app-sidebar" :class="{ 'is-open': open, 'is-collapsed': collapsed }" aria-label="Main navigation">
     <div class="app-sidebar-brand-row">
-        <a class="app-sidebar-brand" href="{{ route('dashboard') }}" :data-tooltip="collapsed ? 'CRISIMAP' : null"><span class="app-brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.1 7-12A7 7 0 1 0 5 9c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.3"/></svg></span><span class="app-sidebar-copy"><strong>CRISI<span>MAP</span></strong><small>AICS PROGRAM</small></span></a>
+        <a class="app-sidebar-brand" href="{{ route('dashboard') }}" :data-tooltip="collapsed ? 'CRISIMAP' : null"><span class="app-brand-mark"><img src="{{ asset('images/crisimap-official-logo.png') }}" alt="CRISIMAP official logo"></span><span class="app-sidebar-copy"><strong>CRISI<span>MAP</span></strong><small>AICS PROGRAM</small></span></a>
         <button @click="collapsed = !collapsed" class="app-collapse-toggle" :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'" :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'">
             <span class="toggle-icon" :class="{ 'is-collapsed': collapsed }" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg></span>
         </button>

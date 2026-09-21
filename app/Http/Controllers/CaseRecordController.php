@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\User;
 use App\Notifications\WorkflowNotification;
-use App\Services\BeneficiaryFromCaseRecordService;
+use App\Services\BeneficiaryFromIntakeService;
 
 class CaseRecordController extends Controller
 {
@@ -119,7 +119,7 @@ class CaseRecordController extends Controller
             'rejected_at' => null,
         ]);
         $this->logStatusChange($caseRecord, 'approved');
-        $beneficiary = app(BeneficiaryFromCaseRecordService::class)->createFrom($caseRecord, (int) $data['assistance_type_id']);
+        $beneficiary = app(BeneficiaryFromIntakeService::class)->createFrom($caseRecord, (int) $data['assistance_type_id']);
         User::query()->whereKey($caseRecord->encoded_by)->where('role', 'social_officer')->get()->each(fn (User $user) => $user->notify(new WorkflowNotification(
             'Case record approved',
             "General Intake Sheet {$caseRecord->intake?->intake_number} and case record {$caseRecord->case_number} were approved by the Focal Person.",

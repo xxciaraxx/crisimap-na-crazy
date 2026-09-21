@@ -7,6 +7,9 @@
 
 /* CRISIMAP secure sign-in experience */
 :root { --crisi-blue:#1565c0; --crisi-deep:#073d82; --crisi-green:#2e7d32; --crisi-yellow:#fbc02d; --crisi-red:#d32f2f; }
+.crisimap-official-logo { display:block; flex:0 0 auto; width:52px; height:52px; object-fit:contain; filter:drop-shadow(0 4px 8px #002c5b80); }
+.app-brand-mark { overflow:hidden; background:#fff; }
+.app-brand-mark img { display:block; width:100%; height:100%; object-fit:contain; }
 .crisi-login { min-height:100vh; margin:0; color:#172033; background:#f8fbff; font-family:Figtree,ui-sans-serif,system-ui,sans-serif; }
 .login-shell { min-height:100vh; display:grid; grid-template-columns:minmax(0,1.05fr) minmax(480px,.95fr); overflow:hidden; background:white; }
 .brand-panel { isolation:isolate; position:relative; min-height:100vh; overflow:hidden; color:white; background:linear-gradient(132deg,#1565c0 0%,#064388 46%,#07366d 100%); animation:panel-in 700ms cubic-bezier(.22,1,.36,1) both; }

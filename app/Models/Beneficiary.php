@@ -139,7 +139,10 @@ class Beneficiary extends Model
 
     public function scopeWithIncludedAssistanceType($query)
     {
-        return $query->whereHas('assistanceType', fn ($typeQuery) => $typeQuery->included());
+        return $query->where(function ($query) {
+            $query->whereNull('assistance_type_id')
+                ->orWhereHas('assistanceType', fn ($typeQuery) => $typeQuery->included());
+        });
     }
 
     public function scopeForIdentity($query, array $identity)

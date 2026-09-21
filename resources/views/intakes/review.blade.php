@@ -13,13 +13,13 @@
             <div class="intake-decision-actions">
                 @can('decide', $intake)
                     <form id="approve-intake-form" method="POST" action="{{ route('intakes.decide', $intake) }}">@csrf<input type="hidden" name="decision" value="approved"></form>
-                    <button type="button" class="intake-button intake-button-approve" @click="approveOpen = true">Approve intake</button>
-                    <button type="button" class="intake-button intake-button-reject" @click="rejectAction = '{{ route('intakes.decide', $intake) }}'; rejectRole = 'Focal Person'; rejectOpen = true">Reject intake</button>
+                    <button type="button" class="intake-button intake-button-approve" @click="approveOpen = true">Approve Intake</button>
+                    <button type="button" class="intake-button intake-button-reject" @click="rejectAction = '{{ route('intakes.decide', $intake) }}'; rejectRole = 'Focal Person'; rejectOpen = true">Reject Intake</button>
                 @endcan
                 @can('headDecide', $intake)
                     <form id="approve-intake-form" method="POST" action="{{ route('intakes.head-decide', $intake) }}">@csrf<input type="hidden" name="decision" value="approved"></form>
-                    <button type="button" class="intake-button intake-button-approve" @click="approveOpen = true">Approve intake</button>
-                    <button type="button" class="intake-button intake-button-reject" @click="rejectAction = '{{ route('intakes.head-decide', $intake) }}'; rejectRole = 'MSWDO Head'; rejectOpen = true">Reject intake</button>
+                    <button type="button" class="intake-button intake-button-approve" @click="approveOpen = true">Approve Intake</button>
+                    <button type="button" class="intake-button intake-button-reject" @click="rejectAction = '{{ route('intakes.head-decide', $intake) }}'; rejectRole = 'MSWDO Head'; rejectOpen = true">Reject Intake</button>
                 @endcan
             </div>
         </div>

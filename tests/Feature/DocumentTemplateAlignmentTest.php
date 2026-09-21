@@ -123,6 +123,47 @@ class DocumentTemplateAlignmentTest extends TestCase
         $this->assertStringContainsString('LAARNI L. ACOSTA, RSW', $content);
     }
 
+    public function test_final_aics_form_uses_direct_general_intake_sheet_values(): void
+    {
+        $officer = User::factory()->create(['role' => 'social_officer']);
+        $barangay = Barangay::firstOrCreate(['name' => 'Bitalag'], ['code' => 'bitalag']);
+        $intake = GeneralIntakeSheet::create([
+            'intake_date' => '2026-09-18',
+            'program' => 'AICS',
+            'client_type' => 'new',
+            'client_name' => 'Intake Client',
+            'beneficiary_name' => 'Intake Beneficiary',
+            'barangay_id' => $barangay->id,
+            'address' => 'Purok 3, Bitalag, Tagudin, Ilocos Sur',
+            'purpose_of_assistance' => 'Medical Assistance',
+            'requested_amount' => 1234.50,
+            'family_composition' => [['name' => 'Family Member', 'relationship_to_client' => 'Son', 'age' => 9]],
+            'encoded_by' => $officer->id,
+        ]);
+        $beneficiary = \App\Models\Beneficiary::create([
+            'name' => 'Incorrect Beneficiary Name',
+            'general_intake_sheet_id' => $intake->id,
+            'age' => 40,
+            'sex' => 'Female',
+            'barangay_id' => $barangay->id,
+            'amount' => 9999.99,
+            'status' => 'Approved',
+            'encoded_by' => $officer->id,
+        ]);
+
+        $content = view('beneficiaries.application-form', [
+            'beneficiary' => $beneficiary->load('intake.barangay', 'barangay'),
+            'finalAicsPayload' => ['receipt_amount' => 1234.50, 'receipt_purpose' => 'Medical Assistance'],
+        ])->render();
+
+        $this->assertStringContainsString('Intake Client', $content);
+        $this->assertStringContainsString('Intake Beneficiary', $content);
+        $this->assertStringContainsString('Purok 3, Bitalag, Tagudin, Ilocos Sur', $content);
+        $this->assertStringContainsString('Family Member', $content);
+        $this->assertStringContainsString('Php 1,234.50', $content);
+        $this->assertStringNotContainsString('Incorrect Beneficiary Name', $content);
+    }
+
     public function test_certificate_of_eligibility_renders_social_worker_and_mayor_signatories(): void
     {
         $officer = User::factory()->create(['role' => 'social_officer']);

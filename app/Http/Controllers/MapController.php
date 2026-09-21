@@ -86,7 +86,9 @@ class MapController extends Controller
                 ->where('name', 'like', '%'.$search.'%')
                 ->orWhere('reference_code', 'like', '%'.$search.'%'));
         }
-        $query->withIncludedAssistanceType();
+        // Unassigned records remain visible in administrative lists, but
+        // cannot be rendered as a categorized map marker.
+        $query->whereNotNull('assistance_type_id')->withIncludedAssistanceType();
         [$from, $to] = $request->filled('from') || $request->filled('to')
             ? [$request->date('from'), $request->date('to')]
             : (DateRangeResolver::resolve($request->input('period')) ?? [null, null]);

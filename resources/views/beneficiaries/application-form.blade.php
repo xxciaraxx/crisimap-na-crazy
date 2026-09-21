@@ -1,18 +1,20 @@
 @php
     $caseRecord = $beneficiary->caseRecord;
-    $intake = $caseRecord?->intake;
+    // Newly approved applications have a direct General Intake Sheet relation.
+    // Retain the case-record path only for older records.
+    $intake = $beneficiary->intake ?? $caseRecord?->intake;
     $client = $intake?->client_name ?? $caseRecord?->client_name ?? $beneficiary->name;
     $person = $intake?->beneficiary_name ?: $client;
-    $barangay = $beneficiary->barangay?->name ?? $intake?->barangay?->name ?? $caseRecord?->barangay?->name ?? '';
-    $assistance = $beneficiary->assistanceType?->name ?? $intake?->purpose_of_assistance ?? '';
-    $amount = $beneficiary->amount ?? $intake?->requested_amount ?? 0;
-    $date = $beneficiary->date_of_assistance?->format('F d, Y')
-        ?? $intake?->intake_date?->format('F d, Y')
+    $barangay = $intake?->barangay?->name ?? $beneficiary->barangay?->name ?? $caseRecord?->barangay?->name ?? '';
+    $address = $intake?->address ?: trim(implode(', ', array_filter([$barangay, 'Tagudin', 'Ilocos Sur'])));
+    $assistance = $intake?->purpose_of_assistance ?? $beneficiary->assistanceType?->name ?? '';
+    $amount = $intake?->requested_amount ?? $beneficiary->amount ?? 0;
+    $date = $intake?->intake_date?->format('F d, Y')
+        ?? $beneficiary->date_of_assistance?->format('F d, Y')
         ?? now()->format('F d, Y');
     $settings = \App\Models\OfficialSetting::values();
     $socialWorker = $settings['social_worker_name'] ?? 'LAARNI L. ACOSTA, RSW';
     $mayor = $settings['mayor_name'] ?? 'EVANGELINE I. VERZOSA';
-    $members = $caseRecord?->householdMembers?->take(10) ?? collect();
     $family = is_array($intake?->family_composition) ? $intake->family_composition : [];
     $final = $finalAicsPayload ?? $beneficiary->final_aics_payload ?? [];
     $checked = fn (bool $value): string => $value ? '&#9745;' : '&#9744;';
@@ -23,11 +25,11 @@
 <head>
     <meta charset="utf-8">
     <style>
-        @page { size: A4 portrait; margin: 10mm 12mm; }
+        @page { size: letter portrait; margin: 10mm 12mm; }
         @page receiptLandscape { size: A4 landscape; margin: 9mm 10mm; }
         * { box-sizing: border-box; }
         body { margin: 0; color: #111; font-family: DejaVu Sans, sans-serif; font-size: 10px; }
-        .page { min-height: 277mm; page-break-after: always; position: relative; page: portrait; }
+        .page { min-height: 259.4mm; page-break-after: always; position: relative; page: portrait; }
         .page:last-child { page-break-after: auto; }
         .receipt-page { min-height: 0; height: 192mm; page: receiptLandscape; page-break-before: always; page-break-after: always; }
         .center { text-align: center; }
@@ -105,19 +107,13 @@
         <div class="application-row"><b>Type of Assistance:</b>
             <table style="width: 100%;"><tr><td class="checks">{!! $checked(false) !!} Cultural Minorities<br>{!! $checked(false) !!} Refugees<br>{!! $checked(false) !!} Evacuees<br>{!! $checked($isAssistance('AICS')) !!} AICS</td><td class="checks">{!! $checked(false) !!} Returnee<br>{!! $checked(false) !!} Squatter<br>{!! $checked(false) !!} ESA<br>{!! $checked($isAssistance('Other') || $isAssistance('Miscellaneous')) !!} Others (Specify) {{ $intake?->assistance_specification }}</td></tr></table>
         </div>
-        <div class="application-row"><b>FAMILY HEAD:</b> <span class="line" style="min-width: 250px;">{{ $client }}</span><br><b>Address:</b> <span class="line" style="min-width: 250px;">{{ $barangay }}</span>, Tagudin, Ilocos Sur</div>
+        <div class="application-row"><b>FAMILY HEAD:</b> <span class="line" style="min-width: 250px;">{{ $client }}</span><br><b>Address:</b> <span class="line" style="min-width: 250px;">{{ $address }}</span></div>
         <table class="family">
             <tr><th style="width: 52%;">NAME</th><th style="width: 35%;">RELATION TO CLIENT</th><th style="width: 13%;">AGE</th></tr>
-            @if($members->isNotEmpty())
-            @foreach($members as $member)
-                <tr><td>{{ $member->name }}</td><td>{{ $member->relationship_to_client }}</td><td>{{ $member->age }}</td></tr>
+            @foreach($family as $member)
+                <tr><td>{{ $member['name'] ?? '' }}</td><td>{{ $member['relationship_to_client'] ?? $member['relationship'] ?? $member['relation'] ?? '' }}</td><td>{{ $member['age'] ?? '' }}</td></tr>
             @endforeach
-            @else
-                @foreach($family as $member)
-                    <tr><td>{{ $member['name'] ?? '' }}</td><td>{{ $member['relationship_to_client'] ?? $member['relationship'] ?? $member['relation'] ?? '' }}</td><td>{{ $member['age'] ?? '' }}</td></tr>
-                @endforeach
-            @endif
-            @for($i = $members->isNotEmpty() ? $members->count() : count($family); $i < 10; $i++) <tr><td>&nbsp;</td><td></td><td></td></tr> @endfor
+            @for($i = count($family); $i < 10; $i++) <tr><td>&nbsp;</td><td></td><td></td></tr> @endfor
         </table>
         <table style="width: 100%; margin-top: 18px;"><tr><td class="purpose"><b>Purpose</b><br>{!! $checked($isAssistance('Medical')) !!} Medical Assistance<br>{!! $checked($isAssistance('Food')) !!} Food Assistance<br>{!! $checked($isAssistance('Livelihood')) !!} Livelihood Assistance<br>{!! $checked($isAssistance('Educational')) !!} Educational Assistance<br>{!! $checked($isAssistance('Transportation')) !!} Transportation Assistance<br>{!! $checked($isAssistance('Construction')) !!} Construction Materials<br>{!! $checked($isAssistance('Burial')) !!} Burial Service</td><td style="vertical-align: top;"><b>Estimated Damaged:</b> <span class="line" style="min-width: 120px;">{{ $final['estimated_damage'] ?? '' }}</span><br><b>Others:</b> <span class="line" style="min-width: 160px;">{{ $intake?->assistance_specification }}</span><br><br><b>CASUALTIES:</b><br><b>NAME:</b> <span class="line" style="min-width: 180px;">{{ $final['casualty_name'] ?? '' }}</span></td></tr></table>
         <div style="margin: 18px auto 0; width: 300px; text-align: center;" class="signature">Signature or Thumb mark of client</div>

@@ -12,7 +12,7 @@ class MapAutoLoader extends Component
     public function load(array $filters = []): void
     {
         $user = auth()->user();
-        $query = Beneficiary::query()->active()->withIncludedAssistanceType()->with(['barangay:id,name', 'assistanceType:id,name,color', 'encoder:id,name', 'intake:id,beneficiary_name']);
+        $query = Beneficiary::query()->active()->whereNotNull('assistance_type_id')->withIncludedAssistanceType()->with(['barangay:id,name', 'assistanceType:id,name,color', 'encoder:id,name', 'intake:id,beneficiary_name']);
         if ($user->role === 'social_officer') $query->where('encoded_by', $user->id);
         $query->when(filled($filters['barangay_id'] ?? null), fn ($q) => $q->where('barangay_id', $filters['barangay_id']))
             ->when(filled($filters['status'] ?? null), fn ($q) => $q->where('status', $filters['status']))

@@ -186,7 +186,7 @@
             <div class="brand-content">
                 <div class="brand-marks reveal reveal-logo">
                     <img class="lgu-seal" src="{{ asset('images/tagudin-logo.png') }}" alt="Municipality of Tagudin, Ilocos Sur logo"><span class="logo-divider" aria-hidden="true"></span>
-                    <div class="crisimap-mark"><span class="map-pin">●</span><span><b>CRISI</b><b>MAP</b><small>AICS BENEFICIARY SYSTEM</small></span></div>
+                    <div class="crisimap-mark"><img class="crisimap-official-logo" src="{{ asset('images/crisimap-official-logo.png') }}" alt="CRISIMAP official logo"><span><b>CRISI</b><b>MAP</b><small>AICS BENEFICIARY SYSTEM</small></span></div>
                 </div>
                 <div class="reveal reveal-title">
                     <p class="eyebrow">MSWDO TAGUDIN · ILOCOS SUR</p>
