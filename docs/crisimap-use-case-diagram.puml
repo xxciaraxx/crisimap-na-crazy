@@ -1,0 +1,137 @@
+@startuml CRISIMAP-Use-Case-Diagram
+title CRISIMAP System - Use Case Diagram
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam linetype ortho
+skinparam nodesep 35
+skinparam ranksep 45
+skinparam actorStyle awesome
+skinparam usecase {
+    BackgroundColor #E8F5F2
+    BorderColor #2E6F68
+    ArrowColor #555555
+    MinimumWidth 150
+}
+
+actor "Social Worker\nOfficer" as SWO
+actor "Focal Person" as FP
+actor "MSWDO Head" as HEAD
+actor "System\nAdministrator" as ADMIN
+actor "Authenticated User" as USER
+
+rectangle "CRISIMAP System" {
+    package "Access and Reporting" as ACCESS {
+        usecase "Authenticate User" as UC_Login
+        usecase "View Dashboard" as UC_Dashboard
+        usecase "View Map" as UC_Map
+        usecase "View Reports" as UC_ViewReports
+        usecase "Generate Report" as UC_GenerateReport
+        usecase "Export Report\n(PDF/Excel)" as UC_ExportReport
+    }
+
+    package "Intake and Case Workflow" as WORKFLOW {
+        usecase "Manage Intake Sheet" as UC_ManageIntake
+        usecase "Create / Update\nIntake Sheet" as UC_EditIntake
+        usecase "Validate Intake Data" as UC_ValidateIntake
+        usecase "Check Applicant\nHistory / Duplicate" as UC_CheckHistory
+        usecase "Submit Intake Sheet" as UC_SubmitIntake
+        usecase "Review Intake Sheet" as UC_ReviewIntake
+        usecase "Reject Intake" as UC_RejectIntake
+        usecase "Approve Intake" as UC_ApproveIntake
+
+        usecase "Manage Case Record" as UC_CaseRecord
+        usecase "Manage Household\nMembers" as UC_Household
+        usecase "Manage Case\nDocuments" as UC_Documents
+        usecase "Review Eligibility" as UC_Eligibility
+        usecase "Create Assistance\nApplication" as UC_CreateApplication
+        usecase "Approve / Reject\nApplication" as UC_ApplicationDecision
+        usecase "Check Eligibility\nRules" as UC_CheckEligibility
+        usecase "Release Assistance" as UC_Release
+        usecase "Verify Approved\nApplication" as UC_VerifyApproved
+        usecase "View Beneficiary\nRecords" as UC_Beneficiaries
+    }
+
+    package "Administration" as ADMINISTRATION {
+        usecase "Manage Users /\nUser Accounts" as UC_Users
+        usecase "Manage System\nSettings" as UC_Settings
+        usecase "View Audit Logs" as UC_Audit
+        usecase "Backup / Export\nSystem Data" as UC_Backup
+    }
+}
+
+' Keep the three functional areas in a predictable left-to-right order.
+UC_Login -[hidden]right- UC_ManageIntake
+UC_ManageIntake -[hidden]right- UC_Users
+UC_Login -[hidden]down- UC_Dashboard
+UC_ManageIntake -[hidden]down- UC_ReviewIntake
+UC_Users -[hidden]down- UC_Settings
+
+' Actor associations reflect the current RBAC policies.
+USER --> UC_Login
+USER --> UC_Dashboard
+USER --> UC_Map
+USER --> UC_ViewReports
+USER --> UC_Beneficiaries
+
+USER <|-- SWO
+USER <|-- FP
+USER <|-- HEAD
+USER <|-- ADMIN
+
+SWO --> UC_ManageIntake
+SWO --> UC_SubmitIntake
+SWO --> UC_CaseRecord
+
+FP --> UC_ManageIntake
+FP --> UC_SubmitIntake
+FP --> UC_ReviewIntake
+FP --> UC_Eligibility
+FP --> UC_Release
+FP --> UC_RejectIntake
+FP --> UC_ApproveIntake
+
+HEAD --> UC_ApplicationDecision
+HEAD --> UC_ApproveIntake
+HEAD --> UC_RejectIntake
+
+ADMIN --> UC_ApplicationDecision
+ADMIN --> UC_Users
+ADMIN --> UC_Settings
+ADMIN --> UC_Audit
+ADMIN --> UC_Backup
+
+' Mandatory behavior: the base use case cannot complete without the included use case.
+UC_ManageIntake .> UC_EditIntake : <<include>>
+UC_EditIntake .> UC_ValidateIntake : <<include>>
+UC_EditIntake .> UC_CheckHistory : <<include>>
+UC_SubmitIntake .> UC_ValidateIntake : <<include>>
+UC_ReviewIntake .> UC_ValidateIntake : <<include>>
+UC_Eligibility .> UC_CheckEligibility : <<include>>
+UC_Eligibility .> UC_CreateApplication : <<include>>
+UC_ApplicationDecision .> UC_CheckEligibility : <<include>>
+UC_Release .> UC_VerifyApproved : <<include>>
+UC_GenerateReport .> UC_ViewReports : <<include>>
+
+' Optional or conditional behavior: the extension is invoked only in the stated case.
+UC_ReviewIntake <. UC_RejectIntake : <<extend>>\n[when requirements fail]
+UC_ReviewIntake <. UC_ApproveIntake : <<extend>>\n[when eligible]
+UC_GenerateReport <. UC_ExportReport : <<extend>>\n[when an export format is requested]
+UC_CaseRecord <. UC_Household : <<extend>>\n[when household data is provided]
+UC_CaseRecord <. UC_Documents : <<extend>>\n[when documents are uploaded]
+
+note right of UC_SubmitIntake
+Social Worker Officer submits
+to Focal Person for review.
+Focal Person submissions go
+to MSWDO Head for approval.
+end note
+
+note right of UC_Release
+Release is available only after
+the MSWDO Head approves the
+assistance application.
+end note
+
+@enduml
